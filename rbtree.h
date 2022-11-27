@@ -13,7 +13,7 @@
 typedef struct rbtree
 {
     struct rbnode * root;
-    int size;
+    unsigned size;
 } RBTree;
 
 typedef struct rbnode
