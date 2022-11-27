@@ -1,6 +1,13 @@
 from bstree import *
 
-bst = BSTree()
-bst.insert(3)
-# rbt.search(obj)
-# rbt.delete(obj)
+def test_for_init():
+    bst = BSTree()
+
+def test_for_insert_delete():
+    bst = BSTree()
+    print(bst.size)
+    bst.insert(1)
+    print(bst.size)
+    bst.delete(1)
+    print(bst.size)
+
