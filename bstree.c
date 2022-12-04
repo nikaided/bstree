@@ -181,6 +181,22 @@ bstree_search(BSTreeObject * self, PyObject * args)
         return Py_True;
 }
 
+static PyObject * 
+bstree_min(BSTreeObject * self, PyObject * args)
+{
+    RBNode * _get_min(RBNode * );
+    RBNode * nodep = _get_min(self->root);
+    Py_BuildValue("i", nodep->key);     
+}
+
+static PyObject * 
+bstree_max(BSTreeObject * self, PyObject * args)
+{
+    RBNode * _get_max(RBNode * );
+    RBNode * nodep = _get_max(self->root);
+    Py_BuildValue("i", nodep->key);     
+}
+
 // 値がkのノードを探してくる。
 // 存在しなければRBTNILを返す
 RBNode * _search(BSTreeObject * self, int k)
@@ -460,6 +476,8 @@ static PyMethodDef bstree_class_methods[] =
     {"insert", (PyCFunction)bstree_insert, METH_VARARGS, "insert an integer"},
     {"delete", (PyCFunction)bstree_delete, METH_VARARGS, "delete an integer"},
     {"search", (PyCFunction)bstree_search, METH_VARARGS, "search an integer"},
+    {"min", (PyCFunction)bstree_min, METH_NOARGS, "get a minimum value"},
+    {"max", (PyCFunction)bstree_max, METH_NOARGS, "get a maximum value"},
     {0, NULL}
 };
 
