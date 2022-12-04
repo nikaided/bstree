@@ -1,3 +1,6 @@
 .vscode/*
+bstree.egg-info/*
+build/*
+dist/*
 *.exe
 *.gch
