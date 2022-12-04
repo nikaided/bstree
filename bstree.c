@@ -13,13 +13,6 @@
 #define RED		(1)
 #define RBTNIL (&sentinel)
 
-// 型定義
-// typedef struct rbtree
-// {
-//     struct rbnode * root;
-//     int size;
-// } RBTree;
-
 typedef struct
 {
     PyObject_HEAD
@@ -121,14 +114,15 @@ static PyObject *
 bstree_delete(BSTreeObject * self, PyObject * args)
 {
     long key;
+    RBNode * nodep;
+    RBNode * _search(BSTreeObject *, int);
+
     if (!PyArg_ParseTuple(args, "l", &key))
         return NULL;
-    if (bstree_search(self, args)==Py_False)
-        return NULL;
 
-    // nodeを生成
-    // [ALERT]ここおかしい。新規ノードを作ってはいけない。
-    RBNode * nodep = create_node(key);
+    if ((nodep = _search(self, key)) == RBTNIL)
+        return NULL;
+    
     self->size -= 1;
 
     RBNode * yp = nodep;
@@ -181,18 +175,25 @@ bstree_search(BSTreeObject * self, PyObject * args)
     if (!PyArg_ParseTuple(args, "l", &key))
         return NULL;
 
+    if (_search(self, key) == RBTNIL)
+        return Py_False;
+    else
+        return Py_True;
+}
+
+// 値がkのノードを探してくる。
+// 存在しなければRBTNILを返す
+RBNode * _search(BSTreeObject * self, int k)
+{
     RBNode * zp = self->root;
-    while (zp != RBTNIL && key != zp->key)
+    while (zp != RBTNIL && k != zp->key)
     {
-        if (key < zp->key)
+        if (k < zp->key)
             zp = zp->left;
         else
             zp = zp->right;
     }
-    if (zp == RBTNIL)
-        return Py_False;
-    else
-        return Py_True;
+    return zp;
 }
 
 RBNode * create_node(long key)
@@ -302,9 +303,6 @@ _right_rotate(BSTreeObject * self, RBNode * nodep)
 void 
 _insert_fixup(BSTreeObject * self, RBNode * nodep)
 {
-    // void _left_rotate(RBTree * , RBNode * );
-    // void _left_rotate(RBTree * , RBNode * );
-
     while (nodep->parent->color == RED)
     {
         if (nodep->parent == nodep->parent->parent->left)
@@ -377,9 +375,6 @@ _transplant(BSTreeObject * self, RBNode * nodeUp, RBNode * nodeVp)
 void
 _delete_fixup(BSTreeObject * self, RBNode * nodep)
 {
-    // void _left_rotate(RBTree * , RBNode * );
-    // void _left_rotate(RBTree * , RBNode * );
-
     while (nodep!=self->root && nodep->color==BLACK)
     {
         if (nodep==nodep->parent->left)
