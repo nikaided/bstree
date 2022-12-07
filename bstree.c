@@ -23,7 +23,7 @@ typedef struct
 
 typedef struct rbnode
 {
-    long key;
+    double key;
     int count;
     char color;
     struct rbnode * parent;
@@ -31,7 +31,7 @@ typedef struct rbnode
     struct rbnode * right;
 } RBNode;
 
-// プロトタイプ宣言
+// prototype declaration
 RBNode sentinel;
 PyObject * bstree_insert(BSTreeObject * , PyObject *);
 PyObject * bstree_search(BSTreeObject * , PyObject *);
@@ -47,11 +47,11 @@ RBNode * _get_min(RBNode * );
 RBNode * _get_max(RBNode * );
 RBNode * get_next(RBNode * );
 RBNode * get_prev(RBNode * );
-RBNode * create_node(long);
+RBNode * create_node(double);
 
 #endif
 
-// leafの変数：すべて同じひとつのnodeとして扱う
+// leaf variable：treat every leaf as one same node.
 RBNode sentinel =
 {
 	.color = BLACK,
@@ -60,7 +60,7 @@ RBNode sentinel =
     .parent = NULL
 };
 
-// methodの定義
+// class methods definition
 int
 bstree_init(BSTreeObject * self, PyObject * args)
 {
@@ -72,12 +72,12 @@ bstree_init(BSTreeObject * self, PyObject * args)
 static PyObject * 
 bstree_insert(BSTreeObject * self, PyObject * args)
 {
-    long key;
-    if (!PyArg_ParseTuple(args, "l", &key))
+    double key;
+    if (!PyArg_ParseTuple(args, "d", &key))
     {
         return NULL;
     }
-    // nodeを生成
+    // create the node
     RBNode * nodep = create_node(key);
     self->size += 1;
 
@@ -95,7 +95,6 @@ bstree_insert(BSTreeObject * self, PyObject * args)
             xp->count += 1;
             free(nodep);
             Py_RETURN_NONE;
-            // return xp;
         }
     }
     nodep->parent = yp;
@@ -113,11 +112,11 @@ bstree_insert(BSTreeObject * self, PyObject * args)
 static PyObject * 
 bstree_delete(BSTreeObject * self, PyObject * args)
 {
-    long key;
+    double key;
     RBNode * nodep;
-    RBNode * _search(BSTreeObject *, int);
+    RBNode * _search(BSTreeObject *, double);
 
-    if (!PyArg_ParseTuple(args, "l", &key))
+    if (!PyArg_ParseTuple(args, "d", &key))
         return NULL;
 
     if ((nodep = _search(self, key)) == RBTNIL)
@@ -171,8 +170,8 @@ bstree_delete(BSTreeObject * self, PyObject * args)
 static PyObject * 
 bstree_search(BSTreeObject * self, PyObject * args)
 {
-    long key;
-    if (!PyArg_ParseTuple(args, "l", &key))
+    double key;
+    if (!PyArg_ParseTuple(args, "d", &key))
         return NULL;
 
     if (_search(self, key) == RBTNIL)
@@ -186,7 +185,7 @@ bstree_min(BSTreeObject * self, PyObject * args)
 {
     RBNode * _get_min(RBNode * );
     RBNode * nodep = _get_min(self->root);
-    Py_BuildValue("i", nodep->key);     
+    return Py_BuildValue("d", nodep->key);     
 }
 
 static PyObject * 
@@ -194,12 +193,12 @@ bstree_max(BSTreeObject * self, PyObject * args)
 {
     RBNode * _get_max(RBNode * );
     RBNode * nodep = _get_max(self->root);
-    Py_BuildValue("i", nodep->key);     
+    return Py_BuildValue("d", nodep->key);     
 }
 
-// 値がkのノードを探してくる。
-// 存在しなければRBTNILを返す
-RBNode * _search(BSTreeObject * self, int k)
+// get the node which key is k.
+// If not exist, get RBTNIL.
+RBNode * _search(BSTreeObject * self, double k)
 {
     RBNode * zp = self->root;
     while (zp != RBTNIL && k != zp->key)
@@ -212,7 +211,7 @@ RBNode * _search(BSTreeObject * self, int k)
     return zp;
 }
 
-RBNode * create_node(long key)
+RBNode * create_node(double key)
 {
     RBNode * nodep = malloc(sizeof(RBNode));
     if (nodep==NULL)
@@ -225,7 +224,7 @@ RBNode * create_node(long key)
     return nodep;
 }
 
-// nodepをrootにしたときの木の最小値
+// get min value of the tree which root is node
 RBNode * _get_min(RBNode * nodep)
 {
     RBNode * zp = nodep;
@@ -234,7 +233,7 @@ RBNode * _get_min(RBNode * nodep)
     return zp;
 }
 
-// nodepをrootにしたときの木の最大値
+// get max value of the tree which root is node
 RBNode * _get_max(RBNode * nodep)
 {
     RBNode * zp = nodep;
@@ -243,9 +242,9 @@ RBNode * _get_max(RBNode * nodep)
     return zp;
 }
 
-// nodepの次に大きい値のノードを返す.
-// 存在しないときはRBTNILを返す
-// nodepはtreeに組み込まれている前提
+// get the next node of node
+// if not exist, get RBTNIL.
+// Presume node is in the tree.
 RBNode * get_next(RBNode * nodep)
 {
     RBNode * _get_min(RBNode * );
@@ -262,7 +261,7 @@ RBNode * get_next(RBNode * nodep)
     return pp;
 }
 
-// nodeはtreeに組み込まれている前提
+// presume node is in the tree
 RBNode * 
 get_prev(RBNode * nodep)
 {
@@ -315,7 +314,7 @@ _right_rotate(BSTreeObject * self, RBNode * nodep)
     nodep->parent = yp;
 }
 
-// nodeはREDという前提
+// presume node color is RED
 void 
 _insert_fixup(BSTreeObject * self, RBNode * nodep)
 {
@@ -375,7 +374,7 @@ _insert_fixup(BSTreeObject * self, RBNode * nodep)
     self->root->color = BLACK;
 }
 
-// uを除去してその場所にvを移植する
+// remove u and transplant v at the same position
 void 
 _transplant(BSTreeObject * self, RBNode * nodeUp, RBNode * nodeVp)
 {
@@ -489,7 +488,7 @@ static PyType_Slot bstreeType_slots[] =
     {0, 0},
 };
 
-// classの定義
+// BSTree class definition
 static PyType_Spec bstreeType_spec =
 {
     .name = "bstree.BSTree",
@@ -500,8 +499,8 @@ static PyType_Spec bstreeType_spec =
 };
 
 
-// スロットの定義
-// ここでBSTreeクラスをモジュールに登録している
+// slot definition
+// registering BSTree class to the module
 static int
 bstree_exec(PyObject * module)
 {
@@ -520,7 +519,7 @@ bstree_exec(PyObject * module)
     }
     return 0;
 }
-//　スロットの登録
+// registering slot
 static PyModuleDef_Slot bstree_module_slots[] = 
 {
     {Py_mod_exec, bstree_exec},
@@ -528,7 +527,7 @@ static PyModuleDef_Slot bstree_module_slots[] =
 };
 
 
-// 個々のモジュール関数の定義
+// module functions definition
 static PyObject * bstree_testfunc1(PyObject * module)
 {
     return NULL;
@@ -537,7 +536,7 @@ static PyObject * bstree_testfunc2(PyObject * module)
 {
     return NULL;
 }
-// モジュール関数の登録
+// registering module functions
 static PyMethodDef bstree_module_methods[] = 
 {
     {"testfunc1", (PyCFunction)bstree_testfunc1, METH_VARARGS, "doc for testfunc1"},
@@ -545,7 +544,7 @@ static PyMethodDef bstree_module_methods[] =
     {NULL, NULL, 0, NULL},
 };
 
-// モジュールの定義
+// module definition
 static struct PyModuleDef bstree_def = 
 {
     .m_base = PyModuleDef_HEAD_INIT,
@@ -556,7 +555,7 @@ static struct PyModuleDef bstree_def =
     .m_slots = bstree_module_slots,
 };
 
-// 初期化
+// initialization
 PyMODINIT_FUNC
 PyInit_bstree(void)
 {
