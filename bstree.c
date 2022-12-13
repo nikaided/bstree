@@ -185,6 +185,8 @@ bstree_min(BSTreeObject * self, PyObject * args)
 {
     RBNode * _get_min(RBNode * );
     RBNode * nodep = _get_min(self->root);
+    if (nodep==RBTNIL)
+        return NULL;
     return Py_BuildValue("d", nodep->key);     
 }
 
@@ -193,6 +195,8 @@ bstree_max(BSTreeObject * self, PyObject * args)
 {
     RBNode * _get_max(RBNode * );
     RBNode * nodep = _get_max(self->root);
+    if (nodep==RBTNIL)
+        return NULL;
     return Py_BuildValue("d", nodep->key);     
 }
 
