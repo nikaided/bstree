@@ -36,6 +36,7 @@ RBNode sentinel;
 PyObject * bstree_insert(BSTreeObject * , PyObject *);
 PyObject * bstree_search(BSTreeObject * , PyObject *);
 PyObject * bstree_delete(BSTreeObject * , PyObject *);
+PyObject * bstree_list(BSTreeObject * , PyObject *);
 PyObject * Bstree_print(BSTreeObject * , PyObject *);
 PyObject * Bstree_min(BSTreeObject * , PyObject *);
 PyObject * Bstree_max(BSTreeObject * , PyObject *);
@@ -185,6 +186,36 @@ bstree_search(BSTreeObject * self, PyObject * args)
         return Py_True;
 }
 
+// 昇順に値を並べたリストをリターンする
+static PyObject *
+bstree_list(BSTreeObject * self, PyObject * args)
+{
+    PyObject * _list_in_order(RBNode * , PyObject * ,int *);
+    PyObject * list;
+    int idx;
+    idx = 0;
+    list = PyList_New(self->size);
+    RBNode * node = self->root;
+    return _list_in_order(node, list, &idx);
+}
+
+static PyObject *
+_list_in_order(RBNode * node, PyObject * list, int * pidx)
+{
+    if (node->left!=RBTNIL)
+        list = _list_in_order(node->left, list, pidx);
+
+    for (int i = 0; i < node->count; i++)
+        PyList_SET_ITEM(list, *pidx+i, PyLong_FromLong(node->key));
+    *pidx += node->count;
+
+    if (node->right!=RBTNIL)
+        list = _list_in_order(node->right, list, pidx);
+    
+    return list;
+}
+
+
 // 昇順に値を並べる
 static PyObject *
 bstree_print(BSTreeObject * self, PyObject * args)
@@ -192,10 +223,9 @@ bstree_print(BSTreeObject * self, PyObject * args)
     void _print_in_order(RBNode * );
     RBNode * node = self->root;
     _print_in_order(node);
+    printf("\n");
     Py_RETURN_NONE;
 }
-
-
 
 static PyObject * 
 bstree_min(BSTreeObject * self, PyObject * args)
@@ -223,7 +253,7 @@ void _print_in_order(RBNode * node)
     if (node->left!=RBTNIL)
         _print_in_order(node->left);
     for (int i = 0; i < node->count; i++)
-        printf("key: %ld\n", node->key);
+        printf("%ld, ", node->key);
     if (node->right!=RBTNIL)
         _print_in_order(node->right);
     return;
@@ -508,6 +538,7 @@ static PyMethodDef bstree_class_methods[] =
     {"insert", (PyCFunction)bstree_insert, METH_VARARGS, "insert an integer"},
     {"delete", (PyCFunction)bstree_delete, METH_VARARGS, "delete an integer"},
     {"search", (PyCFunction)bstree_search, METH_VARARGS, "search an integer"},
+    {"to_list", (PyCFunction)bstree_list, METH_VARARGS, "list in order"},
     {"print", (PyCFunction)bstree_print, METH_VARARGS, "print in order"},
     {"min", (PyCFunction)bstree_min, METH_NOARGS, "get a minimum value"},
     {"max", (PyCFunction)bstree_max, METH_NOARGS, "get a maximum value"},
