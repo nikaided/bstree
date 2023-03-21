@@ -23,7 +23,9 @@ typedef struct
 
 typedef struct rbnode
 {
+    // key
     long key;
+    unsigned long size;
     int count;
     char color;
     struct rbnode * parent;
@@ -90,6 +92,7 @@ bstree_insert(BSTreeObject * self, PyObject * args)
     RBNode * xp = self->root;
     while (xp!=RBTNIL)
     {
+        xp->size += 1;
         yp = xp;
         if (nodep->key < xp->key)
             xp = xp->left;
@@ -121,6 +124,7 @@ bstree_delete(BSTreeObject * self, PyObject * args)
     long key;
     RBNode * nodep;
     RBNode * _search(BSTreeObject *, int);
+    void _update_size_when_deleted(BSTreeObject *, RBNode *);
 
     if (!PyArg_ParseTuple(args, "l", &key))
         return NULL;
@@ -129,6 +133,7 @@ bstree_delete(BSTreeObject * self, PyObject * args)
         return NULL;
     
     self->size -= 1;
+    _update_size_when_deleted(self, nodep);
 
     RBNode * yp = nodep;
     RBNode * xp;
@@ -247,6 +252,51 @@ bstree_max(BSTreeObject * self, PyObject * args)
     Py_BuildValue("l", nodep->key);     
 }
 
+
+static PyObject * 
+bstree_rank(BSTreeObject * self, PyObject * args)
+{
+    unsigned long _get_rank(RBNode * , long);
+    long key;
+    if (!PyArg_ParseTuple(args, "l", &key))
+        return NULL;
+
+    return Py_BuildValue("k", _get_rank(self->root, key));
+}
+
+unsigned long _get_rank(RBNode * node, long key)
+{
+    // use recursive method
+    if (node == RBTNIL)
+        return 0;
+    if (key < node->key)
+        return _get_rank(node->left, key);
+    else if (key > node->key)
+        return node->left->size + node->count + _get_rank(node->right, key);
+    else
+        return node->left->size;
+}
+
+void _update_size_when_deleted(BSTreeObject * self, RBNode * target)
+{
+    void _decrease_node_size(RBNode * , RBNode * );
+    RBNode * node = self->root;
+    _decrease_node_size(node, target);
+}
+
+void _decrease_node_size(RBNode * node, RBNode * target)
+{
+    if (target == RBTNIL)
+        return;
+    node->size -= 1;
+    if (target->key < node->key)
+        _decrease_node_size(node->left, target);
+    else if (target->key > node->key)
+        _decrease_node_size(node->right, target);
+    else
+        return;
+}
+
 // 
 void _print_in_order(RBNode * node)
 {
@@ -280,6 +330,7 @@ RBNode * create_node(long key)
     if (nodep==NULL)
         return NULL;
     nodep->key = key;
+    nodep->size = 1;
     nodep->count = 1;
     nodep->parent = RBTNIL;
     nodep->left = RBTNIL;
@@ -345,6 +396,10 @@ static void
 _left_rotate(BSTreeObject * self, RBNode * nodep)
 {
     RBNode * yp = nodep->right;
+    // update size
+    yp->size = nodep->size;
+    nodep->size = nodep->left->size + nodep->count + yp->left->size;
+
     nodep->right = yp->left;
     if (yp->left != RBTNIL)
         yp->left->parent = nodep;
@@ -363,6 +418,10 @@ static void
 _right_rotate(BSTreeObject * self, RBNode * nodep)
 {
     RBNode * yp = nodep->left;
+    // update size
+    yp->size = nodep->size;
+    nodep->size = nodep->right->size + nodep->count + yp->right->size;
+
     nodep->left = yp->right;
     if (yp->right != RBTNIL)
         yp->right->parent = nodep;
@@ -542,6 +601,7 @@ static PyMethodDef bstree_class_methods[] =
     {"print", (PyCFunction)bstree_print, METH_VARARGS, "print in order"},
     {"min", (PyCFunction)bstree_min, METH_NOARGS, "get a minimum value"},
     {"max", (PyCFunction)bstree_max, METH_NOARGS, "get a maximum value"},
+    {"rank", (PyCFunction)bstree_rank, METH_VARARGS, "get a rank"},
     {0, NULL}
 };
 

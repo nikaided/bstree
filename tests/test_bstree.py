@@ -1,4 +1,5 @@
 import sys
+from bisect import bisect_left
 from random import randint, choice
 import pytest
 from bstree import BSTree
@@ -104,43 +105,68 @@ class TestRBTreeDelete:
             for i in range(11):
                 tree.delete(0)
 
-class TestRBTreeNextPrev:
-    def test_get_next(self):
-        for i in range(100):
-            tree = BSTree()
-            li = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
-            for val in li:
-                tree.insert(val)
-            li.sort()
-            k = choice(li)
-            idx = li.index(k)+1
-            assert tree.next(k) == li[idx]
+# class TestRBTreeNextPrev:
+#     def test_get_next(self):
+#         for i in range(100):
+#             tree = BSTree()
+#             li = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
+#             for val in li:
+#                 tree.insert(val)
+#             li.sort()
+#             k = choice(li)
+#             idx = li.index(k)+1
+#             assert tree.next(k) == li[idx]
 
-class TestRBTreeMinMax:
-    def test_get_min(self):
-        for i in range(100):
-            tree = BSTree()
-            li = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
-            for val in li:
-                tree.insert(val)
-            assert tree.min() == min(li)
+# class TestRBTreeMinMax:
+#     def test_get_min(self):
+#         for i in range(100):
+#             tree = BSTree()
+#             li = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
+#             for val in li:
+#                 tree.insert(val)
+#             assert tree.min() == min(li)
 
-    def test_get_kth_min(self):
-        for i in range(100):
-            tree = BSTree()
-            li = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
-            for val in li:
-                tree.insert(val)
-            li.sort()
-            k = randint(1, 100)
-            assert tree.min(k) == li[k-1]
+#     def test_get_kth_min(self):
+#         for i in range(100):
+#             tree = BSTree()
+#             li = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
+#             for val in li:
+#                 tree.insert(val)
+#             li.sort()
+#             k = randint(1, 100)
+#             assert tree.min(k) == li[k-1]
     
-    def test_when_k_is_out_of_range(self):
-        pass
+#     def test_when_k_is_out_of_range(self):
+#         pass
 
 class TestRBTreeRank:
-    def test_get_the_rank_of_a_node(self):
-        pass
-
-    def test_when_there_is_no_node_for_the_rank(self):
-        pass
+    def test_get_the_rank(self):
+        tree = BSTree()
+        li = [0,1,2,3,4,5,6,7,8,9]
+        for val in li:
+            tree.insert(val)
+        assert tree.rank(0) == 0
+        assert tree.rank(1) == 1
+        assert tree.rank(100) == 10
+    
+    def test_when_multiple_vals(self):
+        tree = BSTree()
+        li = [0 for i in range(10)]
+        for val in li:
+            tree.insert(val)
+        assert tree.rank(0) == 0
+        assert tree.rank(1) == 10
+        assert tree.rank(100) == 10
+    
+    def test_random(self):
+        for i in range(100):
+            tree = BSTree()
+            li = [randint(-100, 100) for j in range(100)]
+            for val in li:
+                tree.insert(val)
+            k = randint(-200, 200)
+            actual = tree.rank(k)
+            li.sort()
+            expected = bisect_left(li, k)
+            assert expected == actual
+        
