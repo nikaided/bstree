@@ -42,9 +42,10 @@ print(bst.to_list())
 # get the next(previous) value of k if k is in the tree
 print(bst.next(k))
 print(bst.prev(k))
-# get the k-th smallest value
+# get the k-th smallest/largest value
 # default k is 1
-print(bst.min(k))
+print(bst.kth_smallest(k))
+print(bst.kth_largest(k))
 # get the number of elements which is strictly less than n.
-print(bst.get_rank(n))
+print(bst.rank_of(n))
 ```

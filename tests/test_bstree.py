@@ -117,27 +117,31 @@ class TestRBTreeDelete:
 #             idx = li.index(k)+1
 #             assert tree.next(k) == li[idx]
 
-# class TestRBTreeMinMax:
-#     def test_get_min(self):
-#         for i in range(100):
-#             tree = BSTree()
-#             li = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
-#             for val in li:
-#                 tree.insert(val)
-#             assert tree.min() == min(li)
+class TestRBTreeKthSmallestLargest:
+    def test_smallest(self):
+        for i in range(100):
+            tree = BSTree()
+            li = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
+            for val in li:
+                tree.insert(val)
+            assert tree.kth_smallest() == min(li)
 
-#     def test_get_kth_min(self):
-#         for i in range(100):
-#             tree = BSTree()
-#             li = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
-#             for val in li:
-#                 tree.insert(val)
-#             li.sort()
-#             k = randint(1, 100)
-#             assert tree.min(k) == li[k-1]
+    def test_get_kth_smallest(self):
+        for i in range(100):
+            tree = BSTree()
+            li = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
+            for val in li:
+                tree.insert(val)
+            li.sort()
+            k = randint(1, 100)
+            assert tree.kth_smallest(k) == li[k-1]
     
-#     def test_when_k_is_out_of_range(self):
-#         pass
+    def test_when_k_is_out_of_range(self):
+        tree = BSTree()
+        tree.insert(0)
+        with pytest.raises(IndexError):
+            tree.kth_smallest(2)
+
 
 class TestRBTreeRank:
     def test_get_the_rank(self):

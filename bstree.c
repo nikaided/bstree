@@ -39,9 +39,12 @@ PyObject * bstree_insert(BSTreeObject * , PyObject *);
 PyObject * bstree_search(BSTreeObject * , PyObject *);
 PyObject * bstree_delete(BSTreeObject * , PyObject *);
 PyObject * bstree_list(BSTreeObject * , PyObject *);
-PyObject * Bstree_print(BSTreeObject * , PyObject *);
-PyObject * Bstree_min(BSTreeObject * , PyObject *);
-PyObject * Bstree_max(BSTreeObject * , PyObject *);
+PyObject * bstree_print(BSTreeObject * , PyObject *);
+PyObject * bstree_kth_smallest(BSTreeObject * , PyObject *);
+PyObject * bstree_kth_largest(BSTreeObject * , PyObject *);
+PyObject * bstree_rank(BSTreeObject * , PyObject *);
+PyObject * bstree_min(BSTreeObject * , PyObject *);
+PyObject * bstree_max(BSTreeObject * , PyObject *);
 
 
 void _left_rotate(BSTreeObject * , RBNode * );
@@ -103,7 +106,6 @@ bstree_insert(BSTreeObject * self, PyObject * args)
             xp->count += 1;
             free(nodep);
             Py_RETURN_NONE;
-            // return xp;
         }
     }
     nodep->parent = yp;
@@ -239,7 +241,7 @@ bstree_min(BSTreeObject * self, PyObject * args)
     RBNode * nodep = _get_min(self->root);
     if (nodep==RBTNIL)
         return NULL;
-    Py_BuildValue("l", nodep->key);     
+    return Py_BuildValue("l", nodep->key);     
 }
 
 static PyObject * 
@@ -249,7 +251,41 @@ bstree_max(BSTreeObject * self, PyObject * args)
     RBNode * nodep = _get_max(self->root);
     if (nodep==RBTNIL)
         return NULL;
-    Py_BuildValue("l", nodep->key);     
+    return Py_BuildValue("l", nodep->key);     
+}
+
+
+static PyObject *
+bstree_kth_smallest(BSTreeObject * self, PyObject * args)
+{
+    long _helper_smallest(RBNode * , unsigned long);
+    unsigned long k;
+    if (!PyArg_ParseTuple(args, "|k", &k))
+        return NULL;
+    if (PyTuple_Size(args) == 0)
+        k = 1;
+    return Py_BuildValue("l", _helper_smallest(self->root, k));
+}
+
+
+static PyObject *
+bstree_kth_largest(BSTreeObject * self, PyObject * args)
+{
+    return NULL;
+}
+
+long _helper_smallest(RBNode * node, unsigned long k)
+{
+    if (k > node->size)
+        PyErr_SetString(PyExc_IndexError, "Index out of range");
+    if (node == RBTNIL)
+        return 0;
+    if (k <= node->left->size)
+        return _helper_smallest(node->left, k);
+    else if (node->left->size < k && k <= node->left->size + node->count)
+        return node->key;
+    else
+        return _helper_smallest(node->right, k - node->left->size - node->count);
 }
 
 
@@ -600,7 +636,9 @@ static PyMethodDef bstree_class_methods[] =
     {"print", (PyCFunction)bstree_print, METH_VARARGS, "print in order"},
     {"min", (PyCFunction)bstree_min, METH_NOARGS, "get a minimum value"},
     {"max", (PyCFunction)bstree_max, METH_NOARGS, "get a maximum value"},
-    {"rank", (PyCFunction)bstree_rank, METH_VARARGS, "get a rank"},
+    {"kth_smallest", (PyCFunction)bstree_kth_smallest, METH_VARARGS, "get a kth smallest value"},
+    {"kth_largest", (PyCFunction)bstree_kth_largest, METH_VARARGS, "get a kth largest value"},
+    {"rank", (PyCFunction)bstree_rank, METH_VARARGS, "get a rank of parameter"},
     {0, NULL}
 };
 
