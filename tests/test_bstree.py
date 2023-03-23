@@ -136,11 +136,35 @@ class TestRBTreeKthSmallestLargest:
             k = randint(1, 100)
             assert tree.kth_smallest(k) == li[k-1]
     
-    def test_when_k_is_out_of_range(self):
+    def test_smallest_when_k_is_out_of_range(self):
         tree = BSTree()
         tree.insert(0)
         with pytest.raises(IndexError):
             tree.kth_smallest(2)
+
+    def test_largest(self):
+        for i in range(100):
+            tree = BSTree()
+            li = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
+            for val in li:
+                tree.insert(val)
+            assert tree.kth_largest() == max(li)
+
+    def test_get_kth_smallest(self):
+        for i in range(100):
+            tree = BSTree()
+            li = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
+            for val in li:
+                tree.insert(val)
+            li.sort(reverse=True)
+            k = randint(1, 100)
+            assert tree.kth_largest(k) == li[k-1]
+    
+    def test_largest_when_k_is_out_of_range(self):
+        tree = BSTree()
+        tree.insert(0)
+        with pytest.raises(IndexError):
+            tree.kth_largest(2)
 
 
 class TestRBTreeRank:

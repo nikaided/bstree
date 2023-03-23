@@ -271,8 +271,15 @@ bstree_kth_smallest(BSTreeObject * self, PyObject * args)
 static PyObject *
 bstree_kth_largest(BSTreeObject * self, PyObject * args)
 {
-    return NULL;
+    long _helper_largest(RBNode * , unsigned long);
+    unsigned long k;
+    if (!PyArg_ParseTuple(args, "|k", &k))
+        return NULL;
+    if (PyTuple_Size(args) == 0)
+        k = 1;
+    return Py_BuildValue("l", _helper_largest(self->root, k));
 }
+
 
 long _helper_smallest(RBNode * node, unsigned long k)
 {
@@ -286,6 +293,21 @@ long _helper_smallest(RBNode * node, unsigned long k)
         return node->key;
     else
         return _helper_smallest(node->right, k - node->left->size - node->count);
+}
+
+
+long _helper_largest(RBNode * node, unsigned long k)
+{
+    if (k > node->size)
+        PyErr_SetString(PyExc_IndexError, "Index out of range");
+    if (node == RBTNIL)
+        return 0;
+    if (k <= node->right->size)
+        return _helper_largest(node->right, k);
+    else if (node->right->size < k && k <= node->right->size + node->count)
+        return node->key;
+    else
+        return _helper_largest(node->left, k - node->right->size - node->count);
 }
 
 
