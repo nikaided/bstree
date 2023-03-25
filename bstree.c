@@ -381,6 +381,26 @@ RBNode * _search(BSTreeObject * self, long k)
     return zp;
 }
 
+
+// get the node which key is k.
+// If not exist, get RBTNIL.
+RBNode * _search_fixup(BSTreeObject * self, long k)
+{
+    RBNode * zp = self->root;
+    if (zp == RBTNIL)
+        return RBTNIL;
+    while (k != zp->key)
+    {
+        if (k < zp->key && zp->left != RBTNIL)
+            zp = zp->left;
+        else if (k > zp->key && zp->right != RBTNIL)
+            zp = zp->right;
+        else
+            break;
+    }
+    return zp;
+}
+
 RBNode * _create_node(long key)
 {
     RBNode * nodep = malloc(sizeof(RBNode));
@@ -413,10 +433,65 @@ RBNode * _get_max(RBNode * nodep)
     return zp;
 }
 
+
+static PyObject * 
+bstree_next(BSTreeObject * self, PyObject * args)
+{
+    RBNode * _get_next(RBNode * );
+    RBNode * _search_fixup(BSTreeObject * , long);
+    long k;
+    if (!PyArg_ParseTuple(args, "l", &k))
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
+        return NULL;
+    }
+    RBNode * nodep = _search_fixup(self, k);
+    if (nodep==RBTNIL)
+        Py_RETURN_NONE;
+    else if (nodep->key > k)
+        return Py_BuildValue("l", nodep->key);
+    else
+    {
+        RBNode * nextp = _get_next(nodep);
+        if (nextp!=RBTNIL)
+            return Py_BuildValue("l", _get_next(nodep)->key);
+        else
+            Py_RETURN_NONE;
+    }
+}
+
+
+static PyObject * 
+bstree_prev(BSTreeObject * self, PyObject * args)
+{
+    RBNode * _get_prev(RBNode * );
+    RBNode * _search_fixup(BSTreeObject * , long);
+    long k;
+    if (!PyArg_ParseTuple(args, "l", &k))
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
+        return NULL;
+    }
+    RBNode * nodep = _search_fixup(self, k);
+    if (nodep==RBTNIL)
+        Py_RETURN_NONE;
+    else if (nodep->key < k)
+        return Py_BuildValue("l", nodep->key);
+    else
+    {
+        RBNode * nextp = _get_prev(nodep);
+        if (nextp!=RBTNIL)
+            return Py_BuildValue("l", _get_prev(nodep)->key);
+        else
+            Py_RETURN_NONE;
+    }
+}
+
+
 // get the value of node which is next to nodep
 // if no node, return RBTNIL
 // assuming that nodep is in the tree
-RBNode * get_next(RBNode * nodep)
+RBNode * _get_next(RBNode * nodep)
 {
     RBNode * _get_min(RBNode * );
 
@@ -433,8 +508,7 @@ RBNode * get_next(RBNode * nodep)
 }
 
 // assuming that nodep is in the tree
-RBNode * 
-get_prev(RBNode * nodep)
+RBNode * _get_prev(RBNode * nodep)
 {
     RBNode * _get_max(RBNode * );
 
@@ -656,6 +730,8 @@ static PyMethodDef bstree_class_methods[] =
     {"search", (PyCFunction)bstree_search, METH_VARARGS, "search an integer"},
     {"to_list", (PyCFunction)bstree_list, METH_VARARGS, "list in order"},
     {"print", (PyCFunction)bstree_print, METH_VARARGS, "print in order"},
+    {"next_to", (PyCFunction)bstree_next, METH_VARARGS, "get a next value"},
+    {"prev_to", (PyCFunction)bstree_prev, METH_VARARGS, "get a prev value"},
     {"min", (PyCFunction)bstree_min, METH_NOARGS, "get a minimum value"},
     {"max", (PyCFunction)bstree_max, METH_NOARGS, "get a maximum value"},
     {"kth_smallest", (PyCFunction)bstree_kth_smallest, METH_VARARGS, "get a kth smallest value"},

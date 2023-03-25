@@ -1,6 +1,6 @@
 import sys
 from bisect import bisect_left
-from random import randint, choice
+from random import randint, choice, shuffle
 import pytest
 from bstree import BSTree
 
@@ -105,17 +105,63 @@ class TestRBTreeDelete:
             for i in range(11):
                 tree.delete(0)
 
-# class TestRBTreeNextPrev:
-#     def test_get_next(self):
-#         for i in range(100):
-#             tree = BSTree()
-#             li = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
-#             for val in li:
-#                 tree.insert(val)
-#             li.sort()
-#             k = choice(li)
-#             idx = li.index(k)+1
-#             assert tree.next(k) == li[idx]
+class TestRBTreeNextPrev:
+    def test_get_next(self):
+        tree = BSTree()
+        input_list = list(range(100))
+        shuffle(input_list)
+        for i in input_list:
+            tree.insert(i)
+        for key in range(99):
+            assert tree.next_to(key) == key + 1
+    
+    def test_get_prev(self):
+        tree = BSTree()
+        input_list = list(range(100))
+        shuffle(input_list)
+        for i in input_list:
+            tree.insert(i)
+        for key in range(1,100):
+            assert tree.prev_to(key) == key - 1
+    
+    def test_get_next_when_tree_is_empty(self):
+        tree = BSTree()
+        assert tree.next_to(0) == None
+    
+    def test_get_prev_when_tree_is_empty(self):
+        tree = BSTree()
+        assert tree.prev_to(0) == None
+
+    def test_get_next_when_key_is_max(self):
+        tree = BSTree()
+        tree.insert(0)
+        assert tree.next_to(0) == None
+
+    def test_get_prev_when_key_is_max(self):
+        tree = BSTree()
+        tree.insert(0)
+        assert tree.prev_to(0) == None
+
+    def test_get_next_when_key_is_not_inserted(self):
+        tree = BSTree()
+        input_list = list(range(0,100,2))
+        shuffle(input_list)
+        for i in input_list:
+            tree.insert(i)
+        for i in range(100):
+            k = randint(0, 49) * 2 - 1
+            assert tree.next_to(k) == k + 1 
+
+    def test_get_prev_when_key_is_not_inserted(self):
+        tree = BSTree()
+        input_list = list(range(0,100,2))
+        shuffle(input_list)
+        for i in input_list:
+            tree.insert(i)
+        for i in range(100):
+            k = randint(0, 49) * 2 + 1
+            assert tree.prev_to(k) == k - 1
+
 
 class TestRBTreeKthSmallestLargest:
     def test_smallest(self):

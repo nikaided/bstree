@@ -39,9 +39,9 @@ for i in range(100):
 print(bst.size)
 # represent the whole elements in the tree as a list in order.
 print(bst.to_list())
-# get the next(previous) value of k if k is in the tree
-print(bst.next(k))
-print(bst.prev(k))
+# get the next(previous) value of k
+print(bst.next_to(k))
+print(bst.prev_to(k))
 # get the k-th smallest/largest value
 # default k is 1
 print(bst.kth_smallest(k))

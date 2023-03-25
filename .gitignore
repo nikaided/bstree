@@ -6,3 +6,6 @@ dist/*
 *.exe
 *.gch
 *.html
+
+*test_cases.py
+d/*
