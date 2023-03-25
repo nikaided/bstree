@@ -47,5 +47,5 @@ print(bst.prev_to(k))
 print(bst.kth_smallest(k))
 print(bst.kth_largest(k))
 # get the number of elements which is strictly less than n.
-print(bst.rank_of(n))
+print(bst.rank(n))
 ```

@@ -2,23 +2,22 @@
 #include <Python.h>
 #include <structmember.h>
 
-#ifndef RBTREE_H
-#define RBTREE_H
+#ifndef BSTREE_H
+#define BSTREE_H
 
 #include <stdio.h>
 #include <stdlib.h>
 
 // macro definition
-#define BLACK 	(0)
-#define RED		(1)
+#define BLACK (0)
+#define RED (1)
 #define RBTNIL (&sentinel)
 
 typedef struct
 {
-    PyObject_HEAD
-    struct rbnode * root;
+    PyObject_HEAD struct rbnode *root;
     unsigned size;
-    PyObject * captured;
+    PyObject *captured;
 } BSTreeObject;
 
 typedef struct rbnode
@@ -28,59 +27,50 @@ typedef struct rbnode
     unsigned long size;
     unsigned long count;
     char color;
-    struct rbnode * parent;
-    struct rbnode * left;
-    struct rbnode * right;
+    struct rbnode *parent;
+    struct rbnode *left;
+    struct rbnode *right;
 } RBNode;
 
-// prototype declaration
-RBNode sentinel;
-PyObject * bstree_insert(BSTreeObject * , PyObject *);
-PyObject * bstree_search(BSTreeObject * , PyObject *);
-PyObject * bstree_delete(BSTreeObject * , PyObject *);
-PyObject * bstree_list(BSTreeObject * , PyObject *);
-PyObject * bstree_print(BSTreeObject * , PyObject *);
-PyObject * bstree_kth_smallest(BSTreeObject * , PyObject *);
-PyObject * bstree_kth_largest(BSTreeObject * , PyObject *);
-PyObject * bstree_rank(BSTreeObject * , PyObject *);
-PyObject * bstree_min(BSTreeObject * , PyObject *);
-PyObject * bstree_max(BSTreeObject * , PyObject *);
+#endif // BSTREE_H
 
-
-void _left_rotate(BSTreeObject * , RBNode * );
-void _right_rotate(BSTreeObject * , RBNode * );
-void _insert_fixup(BSTreeObject * , RBNode * );
-void _delete_fixup(BSTreeObject * , RBNode * );
-void _transplant(BSTreeObject * , RBNode * , RBNode * );
-
-RBNode * _get_min(RBNode * );
-RBNode * _get_max(RBNode * );
-RBNode * get_next(RBNode * );
-RBNode * get_prev(RBNode * );
-RBNode * _create_node(long);
-
-#endif
+// private function declaration
+RBNode *_create_node(long);
+RBNode *_search(BSTreeObject *, long);
+RBNode *_search_fixup(BSTreeObject *, long);
+void _left_rotate(BSTreeObject *, RBNode *);
+void _right_rotate(BSTreeObject *, RBNode *);
+void _insert_fixup(BSTreeObject *, RBNode *);
+void _update_size_when_deleted(BSTreeObject *, RBNode *);
+void _decrease_node_size(RBNode *, RBNode *);
+void _delete_fixup(BSTreeObject *, RBNode *);
+void _transplant(BSTreeObject *, RBNode *, RBNode *);
+PyObject *_list_in_order(RBNode *, PyObject *, int *);
+RBNode *_get_min(RBNode *);
+RBNode *_get_max(RBNode *);
+RBNode *_get_next(RBNode *);
+RBNode *_get_prev(RBNode *);
+long _helper_smallest(RBNode *, unsigned long);
+long _helper_largest(RBNode *, unsigned long);
 
 // leaf node：every leaf is treated as the same node
 RBNode sentinel =
-{
-	.color = BLACK,
-    .left = RBTNIL,
-    .right = RBTNIL,
-    .parent = NULL
-};
+    {
+        .color = BLACK,
+        .left = RBTNIL,
+        .right = RBTNIL,
+        .parent = NULL};
 
 // method definiton
-int
-bstree_init(BSTreeObject * self, PyObject * args)
+int bstree_init(BSTreeObject *self, PyObject *args)
 {
     self->root = RBTNIL;
     self->size = 0;
     return 0;
 }
 
-static PyObject * 
-bstree_insert(BSTreeObject * self, PyObject * args)
+static PyObject *
+bstree_insert(BSTreeObject *self, PyObject *args)
 {
     long key;
     if (!PyArg_ParseTuple(args, "l", &key))
@@ -88,18 +78,18 @@ bstree_insert(BSTreeObject * self, PyObject * args)
         return NULL;
     }
     // create a node first
-    RBNode * nodep = _create_node(key);
+    RBNode *nodep = _create_node(key);
     self->size += 1;
 
-    RBNode * yp = RBTNIL;
-    RBNode * xp = self->root;
-    while (xp!=RBTNIL)
+    RBNode *yp = RBTNIL;
+    RBNode *xp = self->root;
+    while (xp != RBTNIL)
     {
         xp->size += 1;
         yp = xp;
         if (nodep->key < xp->key)
             xp = xp->left;
-        else if(nodep->key > xp->key)
+        else if (nodep->key > xp->key)
             xp = xp->right;
         else
         {
@@ -109,7 +99,7 @@ bstree_insert(BSTreeObject * self, PyObject * args)
         }
     }
     nodep->parent = yp;
-    if (yp==RBTNIL)
+    if (yp == RBTNIL)
         self->root = nodep;
     else if (nodep->key < yp->key)
         yp->left = nodep;
@@ -120,27 +110,25 @@ bstree_insert(BSTreeObject * self, PyObject * args)
     Py_RETURN_NONE;
 }
 
-static PyObject * 
-bstree_delete(BSTreeObject * self, PyObject * args)
+static PyObject *
+bstree_delete(BSTreeObject *self, PyObject *args)
 {
     long key;
-    RBNode * nodep;
-    RBNode * _search(BSTreeObject *, long);
-    void _update_size_when_deleted(BSTreeObject *, RBNode *);
+    RBNode *nodep;
 
     if (!PyArg_ParseTuple(args, "l", &key))
         return NULL;
 
     if ((nodep = _search(self, key)) == RBTNIL)
         return NULL;
-    
+
     self->size -= 1;
     _update_size_when_deleted(self, nodep);
 
-    RBNode * yp = nodep;
-    RBNode * xp;
+    RBNode *yp = nodep;
+    RBNode *xp;
     char y_original_color = yp->color;
-    
+
     if (nodep->count > 1)
     {
         nodep->count -= 1;
@@ -180,8 +168,8 @@ bstree_delete(BSTreeObject * self, PyObject * args)
     Py_RETURN_NONE;
 }
 
-static PyObject * 
-bstree_search(BSTreeObject * self, PyObject * args)
+static PyObject *
+bstree_search(BSTreeObject *self, PyObject *args)
 {
     long key;
     if (!PyArg_ParseTuple(args, "l", &key))
@@ -195,70 +183,37 @@ bstree_search(BSTreeObject * self, PyObject * args)
 
 // return a list in ascending order
 static PyObject *
-bstree_list(BSTreeObject * self, PyObject * args)
+bstree_list(BSTreeObject *self, PyObject *args)
 {
-    PyObject * _list_in_order(RBNode * , PyObject * ,int *);
-    PyObject * list;
+    PyObject *list;
     int idx;
     idx = 0;
     list = PyList_New(self->size);
-    RBNode * node = self->root;
+    RBNode *node = self->root;
     return _list_in_order(node, list, &idx);
 }
 
 static PyObject *
-_list_in_order(RBNode * node, PyObject * list, int * pidx)
+bstree_min(BSTreeObject *self, PyObject *args)
 {
-    if (node->left!=RBTNIL)
-        list = _list_in_order(node->left, list, pidx);
-
-    for (int i = 0; i < node->count; i++)
-        PyList_SET_ITEM(list, *pidx+i, PyLong_FromLong(node->key));
-    *pidx += node->count;
-
-    if (node->right!=RBTNIL)
-        list = _list_in_order(node->right, list, pidx);
-    
-    return list;
-}
-
-
-// 昇順に値を並べる
-static PyObject *
-bstree_print(BSTreeObject * self, PyObject * args)
-{
-    void _print_in_order(RBNode * );
-    RBNode * node = self->root;
-    _print_in_order(node);
-    printf("\n");
-    Py_RETURN_NONE;
-}
-
-static PyObject * 
-bstree_min(BSTreeObject * self, PyObject * args)
-{
-    RBNode * _get_min(RBNode * );
-    RBNode * nodep = _get_min(self->root);
-    if (nodep==RBTNIL)
+    RBNode *nodep = _get_min(self->root);
+    if (nodep == RBTNIL)
         return NULL;
-    return Py_BuildValue("l", nodep->key);     
+    return Py_BuildValue("l", nodep->key);
 }
-
-static PyObject * 
-bstree_max(BSTreeObject * self, PyObject * args)
-{
-    RBNode * _get_max(RBNode * );
-    RBNode * nodep = _get_max(self->root);
-    if (nodep==RBTNIL)
-        return NULL;
-    return Py_BuildValue("l", nodep->key);     
-}
-
 
 static PyObject *
-bstree_kth_smallest(BSTreeObject * self, PyObject * args)
+bstree_max(BSTreeObject *self, PyObject *args)
 {
-    long _helper_smallest(RBNode * , unsigned long);
+    RBNode *nodep = _get_max(self->root);
+    if (nodep == RBTNIL)
+        return NULL;
+    return Py_BuildValue("l", nodep->key);
+}
+
+static PyObject *
+bstree_kth_smallest(BSTreeObject *self, PyObject *args)
+{
     unsigned long k;
     if (!PyArg_ParseTuple(args, "|k", &k))
         return NULL;
@@ -267,11 +222,9 @@ bstree_kth_smallest(BSTreeObject * self, PyObject * args)
     return Py_BuildValue("l", _helper_smallest(self->root, k));
 }
 
-
 static PyObject *
-bstree_kth_largest(BSTreeObject * self, PyObject * args)
+bstree_kth_largest(BSTreeObject *self, PyObject *args)
 {
-    long _helper_largest(RBNode * , unsigned long);
     unsigned long k;
     if (!PyArg_ParseTuple(args, "|k", &k))
         return NULL;
@@ -280,8 +233,34 @@ bstree_kth_largest(BSTreeObject * self, PyObject * args)
     return Py_BuildValue("l", _helper_largest(self->root, k));
 }
 
+static PyObject *
+bstree_rank(BSTreeObject *self, PyObject *args)
+{
+    unsigned long _get_rank(RBNode *, long);
+    long key;
+    if (!PyArg_ParseTuple(args, "l", &key))
+        return NULL;
 
-long _helper_smallest(RBNode * node, unsigned long k)
+    return Py_BuildValue("k", _get_rank(self->root, key));
+}
+
+static PyObject *
+_list_in_order(RBNode *node, PyObject *list, int *pidx)
+{
+    if (node->left != RBTNIL)
+        list = _list_in_order(node->left, list, pidx);
+
+    for (int i = 0; i < node->count; i++)
+        PyList_SET_ITEM(list, *pidx + i, PyLong_FromLong(node->key));
+    *pidx += node->count;
+
+    if (node->right != RBTNIL)
+        list = _list_in_order(node->right, list, pidx);
+
+    return list;
+}
+
+long _helper_smallest(RBNode *node, unsigned long k)
 {
     if (k > node->size)
         PyErr_SetString(PyExc_IndexError, "Index out of range");
@@ -295,8 +274,7 @@ long _helper_smallest(RBNode * node, unsigned long k)
         return _helper_smallest(node->right, k - node->left->size - node->count);
 }
 
-
-long _helper_largest(RBNode * node, unsigned long k)
+long _helper_largest(RBNode *node, unsigned long k)
 {
     if (k > node->size)
         PyErr_SetString(PyExc_IndexError, "Index out of range");
@@ -310,19 +288,7 @@ long _helper_largest(RBNode * node, unsigned long k)
         return _helper_largest(node->left, k - node->right->size - node->count);
 }
 
-
-static PyObject * 
-bstree_rank(BSTreeObject * self, PyObject * args)
-{
-    unsigned long _get_rank(RBNode * , long);
-    long key;
-    if (!PyArg_ParseTuple(args, "l", &key))
-        return NULL;
-
-    return Py_BuildValue("k", _get_rank(self->root, key));
-}
-
-unsigned long _get_rank(RBNode * node, long key)
+unsigned long _get_rank(RBNode *node, long key)
 {
     if (node == RBTNIL)
         return 0;
@@ -334,14 +300,13 @@ unsigned long _get_rank(RBNode * node, long key)
         return node->left->size;
 }
 
-void _update_size_when_deleted(BSTreeObject * self, RBNode * target)
+void _update_size_when_deleted(BSTreeObject *self, RBNode *target)
 {
-    void _decrease_node_size(RBNode * , RBNode * );
-    RBNode * node = self->root;
+    RBNode *node = self->root;
     _decrease_node_size(node, target);
 }
 
-void _decrease_node_size(RBNode * node, RBNode * target)
+void _decrease_node_size(RBNode *node, RBNode *target)
 {
     if (target == RBTNIL)
         return;
@@ -354,23 +319,11 @@ void _decrease_node_size(RBNode * node, RBNode * target)
         return;
 }
 
-
-void _print_in_order(RBNode * node)
-{
-    if (node->left!=RBTNIL)
-        _print_in_order(node->left);
-    for (int i = 0; i < node->count; i++)
-        printf("%ld, ", node->key);
-    if (node->right!=RBTNIL)
-        _print_in_order(node->right);
-    return;
-}
-
 // get the node which key is k.
 // If not exist, get RBTNIL.
-RBNode * _search(BSTreeObject * self, long k)
+RBNode *_search(BSTreeObject *self, long k)
 {
-    RBNode * zp = self->root;
+    RBNode *zp = self->root;
     while (zp != RBTNIL && k != zp->key)
     {
         if (k < zp->key)
@@ -381,12 +334,11 @@ RBNode * _search(BSTreeObject * self, long k)
     return zp;
 }
 
-
 // get the node which key is k.
 // If not exist, get RBTNIL.
-RBNode * _search_fixup(BSTreeObject * self, long k)
+RBNode *_search_fixup(BSTreeObject *self, long k)
 {
-    RBNode * zp = self->root;
+    RBNode *zp = self->root;
     if (zp == RBTNIL)
         return RBTNIL;
     while (k != zp->key)
@@ -401,10 +353,10 @@ RBNode * _search_fixup(BSTreeObject * self, long k)
     return zp;
 }
 
-RBNode * _create_node(long key)
+RBNode *_create_node(long key)
 {
-    RBNode * nodep = malloc(sizeof(RBNode));
-    if (nodep==NULL)
+    RBNode *nodep = malloc(sizeof(RBNode));
+    if (nodep == NULL)
         return NULL;
     nodep->key = key;
     nodep->size = 1;
@@ -416,117 +368,107 @@ RBNode * _create_node(long key)
 }
 
 // get the min value of the tree which root is nodep
-RBNode * _get_min(RBNode * nodep)
+RBNode *_get_min(RBNode *nodep)
 {
-    RBNode * zp = nodep;
+    RBNode *zp = nodep;
     while (zp->left != RBTNIL)
         zp = zp->left;
     return zp;
 }
 
 // get the max value of the tree which root is nodep
-RBNode * _get_max(RBNode * nodep)
+RBNode *_get_max(RBNode *nodep)
 {
-    RBNode * zp = nodep;
+    RBNode *zp = nodep;
     while (zp->right != RBTNIL)
         zp = zp->right;
     return zp;
 }
 
-
-static PyObject * 
-bstree_next(BSTreeObject * self, PyObject * args)
+static PyObject *
+bstree_next(BSTreeObject *self, PyObject *args)
 {
-    RBNode * _get_next(RBNode * );
-    RBNode * _search_fixup(BSTreeObject * , long);
+    RBNode *_get_next(RBNode *);
     long k;
     if (!PyArg_ParseTuple(args, "l", &k))
     {
         PyErr_SetString(PyExc_TypeError, "Argument Invalid");
         return NULL;
     }
-    RBNode * nodep = _search_fixup(self, k);
-    if (nodep==RBTNIL)
+    RBNode *nodep = _search_fixup(self, k);
+    if (nodep == RBTNIL)
         Py_RETURN_NONE;
     else if (nodep->key > k)
         return Py_BuildValue("l", nodep->key);
     else
     {
-        RBNode * nextp = _get_next(nodep);
-        if (nextp!=RBTNIL)
+        RBNode *nextp = _get_next(nodep);
+        if (nextp != RBTNIL)
             return Py_BuildValue("l", _get_next(nodep)->key);
         else
             Py_RETURN_NONE;
     }
 }
 
-
-static PyObject * 
-bstree_prev(BSTreeObject * self, PyObject * args)
+static PyObject *
+bstree_prev(BSTreeObject *self, PyObject *args)
 {
-    RBNode * _get_prev(RBNode * );
-    RBNode * _search_fixup(BSTreeObject * , long);
     long k;
     if (!PyArg_ParseTuple(args, "l", &k))
     {
         PyErr_SetString(PyExc_TypeError, "Argument Invalid");
         return NULL;
     }
-    RBNode * nodep = _search_fixup(self, k);
-    if (nodep==RBTNIL)
+    RBNode *nodep = _search_fixup(self, k);
+    if (nodep == RBTNIL)
         Py_RETURN_NONE;
     else if (nodep->key < k)
         return Py_BuildValue("l", nodep->key);
     else
     {
-        RBNode * nextp = _get_prev(nodep);
-        if (nextp!=RBTNIL)
+        RBNode *nextp = _get_prev(nodep);
+        if (nextp != RBTNIL)
             return Py_BuildValue("l", _get_prev(nodep)->key);
         else
             Py_RETURN_NONE;
     }
 }
 
-
 // get the value of node which is next to nodep
 // if no node, return RBTNIL
 // assuming that nodep is in the tree
-RBNode * _get_next(RBNode * nodep)
+RBNode *_get_next(RBNode *nodep)
 {
-    RBNode * _get_min(RBNode * );
-
-    if (nodep->right!=RBTNIL)
+    if (nodep->right != RBTNIL)
         return _get_min(nodep->right);
 
-    RBNode * pp = nodep->parent;
-    while (pp!=RBTNIL && nodep==pp->right)
+    RBNode *pp = nodep->parent;
+    while (pp != RBTNIL && nodep == pp->right)
     {
         nodep = pp;
         pp = nodep->parent;
-    } 
+    }
     return pp;
 }
 
 // assuming that nodep is in the tree
-RBNode * _get_prev(RBNode * nodep)
+RBNode *_get_prev(RBNode *nodep)
 {
-    RBNode * _get_max(RBNode * );
-
-    if (nodep->left!=RBTNIL)
+    if (nodep->left != RBTNIL)
         return _get_max(nodep->left);
-    RBNode * pp = nodep->parent;
-    while (pp!=RBTNIL && nodep==pp->left)
+    RBNode *pp = nodep->parent;
+    while (pp != RBTNIL && nodep == pp->left)
     {
         nodep = pp;
         pp = nodep->parent;
-    } 
-    return pp; 
+    }
+    return pp;
 }
 
 static void
-_left_rotate(BSTreeObject * self, RBNode * nodep)
+_left_rotate(BSTreeObject *self, RBNode *nodep)
 {
-    RBNode * yp = nodep->right;
+    RBNode *yp = nodep->right;
     // update size
     yp->size = nodep->size;
     nodep->size = nodep->left->size + nodep->count + yp->left->size;
@@ -535,9 +477,9 @@ _left_rotate(BSTreeObject * self, RBNode * nodep)
     if (yp->left != RBTNIL)
         yp->left->parent = nodep;
     yp->parent = nodep->parent;
-    if (nodep->parent==RBTNIL)
+    if (nodep->parent == RBTNIL)
         self->root = yp;
-    else if (nodep==nodep->parent->left)
+    else if (nodep == nodep->parent->left)
         nodep->parent->left = yp;
     else
         nodep->parent->right = yp;
@@ -546,9 +488,9 @@ _left_rotate(BSTreeObject * self, RBNode * nodep)
 }
 
 static void
-_right_rotate(BSTreeObject * self, RBNode * nodep)
+_right_rotate(BSTreeObject *self, RBNode *nodep)
 {
-    RBNode * yp = nodep->left;
+    RBNode *yp = nodep->left;
     // update size
     yp->size = nodep->size;
     nodep->size = nodep->right->size + nodep->count + yp->right->size;
@@ -557,9 +499,9 @@ _right_rotate(BSTreeObject * self, RBNode * nodep)
     if (yp->right != RBTNIL)
         yp->right->parent = nodep;
     yp->parent = nodep->parent;
-    if (nodep->parent==RBTNIL)
+    if (nodep->parent == RBTNIL)
         self->root = yp;
-    else if (nodep==nodep->parent->right)
+    else if (nodep == nodep->parent->right)
         nodep->parent->right = yp;
     else
         nodep->parent->left = yp;
@@ -568,14 +510,13 @@ _right_rotate(BSTreeObject * self, RBNode * nodep)
 }
 
 // assuming that nodep is in the tree
-void 
-_insert_fixup(BSTreeObject * self, RBNode * nodep)
+void _insert_fixup(BSTreeObject *self, RBNode *nodep)
 {
     while (nodep->parent->color == RED)
     {
         if (nodep->parent == nodep->parent->parent->left)
         {
-            RBNode * yp = nodep->parent->parent->right;
+            RBNode *yp = nodep->parent->parent->right;
             if (yp->color == RED)
             {
                 nodep->parent->color = BLACK;
@@ -583,7 +524,7 @@ _insert_fixup(BSTreeObject * self, RBNode * nodep)
                 nodep->parent->parent->color = RED;
                 nodep = nodep->parent->parent;
             }
-            else 
+            else
             {
                 if (nodep == nodep->parent->right)
                 {
@@ -600,7 +541,7 @@ _insert_fixup(BSTreeObject * self, RBNode * nodep)
         }
         else
         {
-            RBNode * yp = nodep->parent->parent->left;
+            RBNode *yp = nodep->parent->parent->left;
             if (yp->color == RED)
             {
                 nodep->parent->color = BLACK;
@@ -608,7 +549,7 @@ _insert_fixup(BSTreeObject * self, RBNode * nodep)
                 nodep->parent->parent->color = RED;
                 nodep = nodep->parent->parent;
             }
-            else 
+            else
             {
                 if (nodep == nodep->parent->left)
                 {
@@ -628,8 +569,7 @@ _insert_fixup(BSTreeObject * self, RBNode * nodep)
 }
 
 // remove u, and transplant v where u was
-void 
-_transplant(BSTreeObject * self, RBNode * nodeUp, RBNode * nodeVp)
+void _transplant(BSTreeObject *self, RBNode *nodeUp, RBNode *nodeVp)
 {
     if (nodeUp->parent == RBTNIL)
         self->root = nodeVp;
@@ -640,29 +580,28 @@ _transplant(BSTreeObject * self, RBNode * nodeUp, RBNode * nodeVp)
     nodeVp->parent = nodeUp->parent;
 }
 
-void
-_delete_fixup(BSTreeObject * self, RBNode * nodep)
+void _delete_fixup(BSTreeObject *self, RBNode *nodep)
 {
-    while (nodep!=self->root && nodep->color==BLACK)
+    while (nodep != self->root && nodep->color == BLACK)
     {
-        if (nodep==nodep->parent->left)
+        if (nodep == nodep->parent->left)
         {
-            RBNode * wp = nodep->parent->right;
-            if (wp->color==RED)
+            RBNode *wp = nodep->parent->right;
+            if (wp->color == RED)
             {
                 wp->color = BLACK;
                 nodep->parent->color = RED;
                 _left_rotate(self, nodep->parent);
                 wp = nodep->parent->right;
             }
-            if (wp->left->color==BLACK && wp->right->color==BLACK)
+            if (wp->left->color == BLACK && wp->right->color == BLACK)
             {
                 wp->color = RED;
                 nodep = nodep->parent;
             }
-            else 
+            else
             {
-                if (wp->right->color==BLACK)
+                if (wp->right->color == BLACK)
                 {
                     wp->left->color = BLACK;
                     wp->color = RED;
@@ -681,22 +620,22 @@ _delete_fixup(BSTreeObject * self, RBNode * nodep)
         }
         else
         {
-            RBNode * wp = nodep->parent->left;
-            if (wp->color==RED)
+            RBNode *wp = nodep->parent->left;
+            if (wp->color == RED)
             {
                 wp->color = BLACK;
                 nodep->parent->color = RED;
                 _right_rotate(self, nodep->parent);
                 wp = nodep->parent->left;
             }
-            if (wp->right->color==BLACK && wp->left->color==BLACK)
+            if (wp->right->color == BLACK && wp->left->color == BLACK)
             {
                 wp->color = RED;
                 nodep = nodep->parent;
             }
-            else 
+            else
             {
-                if (wp->left->color==BLACK)
+                if (wp->left->color == BLACK)
                 {
                     wp->right->color = BLACK;
                     wp->color = RED;
@@ -717,56 +656,52 @@ _delete_fixup(BSTreeObject * self, RBNode * nodep)
     nodep->color = BLACK;
 }
 
-static PyMemberDef bstree_class_members[] = 
-{
-    {"size", T_LONG, offsetof(BSTreeObject, size), READONLY},
-    {NULL}
-};
+static PyMemberDef bstree_class_members[] =
+    {
+        {"size", T_LONG, offsetof(BSTreeObject, size), READONLY},
+        {NULL}};
 
-static PyMethodDef bstree_class_methods[] = 
-{
-    {"insert", (PyCFunction)bstree_insert, METH_VARARGS, "insert an integer"},
-    {"delete", (PyCFunction)bstree_delete, METH_VARARGS, "delete an integer"},
-    {"search", (PyCFunction)bstree_search, METH_VARARGS, "search an integer"},
-    {"to_list", (PyCFunction)bstree_list, METH_VARARGS, "list in order"},
-    {"print", (PyCFunction)bstree_print, METH_VARARGS, "print in order"},
-    {"next_to", (PyCFunction)bstree_next, METH_VARARGS, "get a next value"},
-    {"prev_to", (PyCFunction)bstree_prev, METH_VARARGS, "get a prev value"},
-    {"min", (PyCFunction)bstree_min, METH_NOARGS, "get a minimum value"},
-    {"max", (PyCFunction)bstree_max, METH_NOARGS, "get a maximum value"},
-    {"kth_smallest", (PyCFunction)bstree_kth_smallest, METH_VARARGS, "get a kth smallest value"},
-    {"kth_largest", (PyCFunction)bstree_kth_largest, METH_VARARGS, "get a kth largest value"},
-    {"rank", (PyCFunction)bstree_rank, METH_VARARGS, "get a rank of parameter"},
-    {0, NULL}
-};
+static PyMethodDef bstree_class_methods[] =
+    {
+        {"insert", (PyCFunction)bstree_insert, METH_VARARGS, "insert an integer"},
+        {"delete", (PyCFunction)bstree_delete, METH_VARARGS, "delete an integer"},
+        {"search", (PyCFunction)bstree_search, METH_VARARGS, "search an integer"},
+        {"to_list", (PyCFunction)bstree_list, METH_VARARGS, "list in order"},
+        {"next_to", (PyCFunction)bstree_next, METH_VARARGS, "get a next value"},
+        {"prev_to", (PyCFunction)bstree_prev, METH_VARARGS, "get a prev value"},
+        {"min", (PyCFunction)bstree_min, METH_NOARGS, "get a minimum value"},
+        {"max", (PyCFunction)bstree_max, METH_NOARGS, "get a maximum value"},
+        {"kth_smallest", (PyCFunction)bstree_kth_smallest, METH_VARARGS, "get a kth smallest value"},
+        {"kth_largest", (PyCFunction)bstree_kth_largest, METH_VARARGS, "get a kth largest value"},
+        {"rank", (PyCFunction)bstree_rank, METH_VARARGS, "get a rank of parameter"},
+        {0, NULL}};
 
 static PyType_Slot bstreeType_slots[] =
-{
-    {Py_tp_methods, bstree_class_methods},
-    {Py_tp_init, (initproc)bstree_init},
-    {Py_tp_members, bstree_class_members},
-    {0, 0},
+    {
+        {Py_tp_methods, bstree_class_methods},
+        {Py_tp_init, (initproc)bstree_init},
+        {Py_tp_members, bstree_class_members},
+        {0, 0},
 };
 
 // class definition
 static PyType_Spec bstreeType_spec =
-{
-    .name = "bstree.BSTree",
-    .basicsize = sizeof(BSTreeObject),
-    // .itemsize = 0,
-    .flags = Py_TPFLAGS_DEFAULT,
-    .slots = bstreeType_slots,
+    {
+        .name = "bstree.BSTree",
+        .basicsize = sizeof(BSTreeObject),
+        // .itemsize = 0,
+        .flags = Py_TPFLAGS_DEFAULT,
+        .slots = bstreeType_slots,
 };
-
 
 // slot definition
 // registering BSTree class to bstree module
 static int
-bstree_exec(PyObject * module)
+bstree_exec(PyObject *module)
 {
-    PyObject * type;
+    PyObject *type;
     type = PyType_FromSpec(&bstreeType_spec);
-    if (!type) 
+    if (!type)
     {
         Py_DECREF(module);
         return -1;
@@ -779,41 +714,40 @@ bstree_exec(PyObject * module)
     }
     return 0;
 }
-//　register slot
-static PyModuleDef_Slot bstree_module_slots[] = 
-{
-    {Py_mod_exec, bstree_exec},
-    {0, NULL},
+// 　register slot
+static PyModuleDef_Slot bstree_module_slots[] =
+    {
+        {Py_mod_exec, bstree_exec},
+        {0, NULL},
 };
-
 
 // module function definition
 // not implemented yet
-static PyObject * bstree_testfunc1(PyObject * module)
+static PyObject *bstree_testfunc1(PyObject *module)
 {
     return NULL;
 }
-static PyObject * bstree_testfunc2(PyObject * module)
+static PyObject *bstree_testfunc2(PyObject *module)
 {
     return NULL;
 }
 // register module functions
-static PyMethodDef bstree_module_methods[] = 
-{
-    {"testfunc1", (PyCFunction)bstree_testfunc1, METH_VARARGS, "doc for testfunc1"},
-    {"testfunc2", (PyCFunction)bstree_testfunc2, METH_VARARGS, "doc for testfunc2"},
-    {NULL, NULL, 0, NULL},
+static PyMethodDef bstree_module_methods[] =
+    {
+        {"testfunc1", (PyCFunction)bstree_testfunc1, METH_VARARGS, "doc for testfunc1"},
+        {"testfunc2", (PyCFunction)bstree_testfunc2, METH_VARARGS, "doc for testfunc2"},
+        {NULL, NULL, 0, NULL},
 };
 
 // module definition
-static struct PyModuleDef bstree_def = 
-{
-    .m_base = PyModuleDef_HEAD_INIT,
-    .m_name = "bstree",
-    .m_doc = "document about bstree module",
-    .m_size = 0,
-    .m_methods = bstree_module_methods,
-    .m_slots = bstree_module_slots,
+static struct PyModuleDef bstree_def =
+    {
+        .m_base = PyModuleDef_HEAD_INIT,
+        .m_name = "bstree",
+        .m_doc = "document about bstree module",
+        .m_size = 0,
+        .m_methods = bstree_module_methods,
+        .m_slots = bstree_module_slots,
 };
 
 // initialize module
@@ -821,4 +755,4 @@ PyMODINIT_FUNC
 PyInit_bstree(void)
 {
     return PyModuleDef_Init(&bstree_def);
-} 
+}
