@@ -185,9 +185,8 @@ class TestRBTreeKthSmallestLargest:
 
     def test_smallest_when_k_is_out_of_range(self):
         tree = BSTree()
-        tree.insert(0)
         with pytest.raises(IndexError):
-            tree.kth_smallest(2)
+            tree.kth_smallest()
 
     def test_largest(self):
         for i in range(100):
@@ -209,9 +208,8 @@ class TestRBTreeKthSmallestLargest:
 
     def test_largest_when_k_is_out_of_range(self):
         tree = BSTree()
-        tree.insert(0)
         with pytest.raises(IndexError):
-            tree.kth_largest(2)
+            tree.kth_largest()
 
 
 class TestRBTreeRank:

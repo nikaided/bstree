@@ -215,22 +215,32 @@ static PyObject *
 bstree_kth_smallest(BSTreeObject *self, PyObject *args)
 {
     unsigned long k;
+    int ret;
+    long ans;
     if (!PyArg_ParseTuple(args, "|k", &k))
         return NULL;
     if (PyTuple_Size(args) == 0)
         k = 1;
-    return Py_BuildValue("l", _helper_smallest(self->root, k));
+    ret = _helper_smallest(self->root, k, &ans);
+    if (ret == -1)
+        return NULL;
+    return Py_BuildValue("l", ans);
 }
 
 static PyObject *
 bstree_kth_largest(BSTreeObject *self, PyObject *args)
 {
     unsigned long k;
+    int ret;
+    long ans;
     if (!PyArg_ParseTuple(args, "|k", &k))
         return NULL;
     if (PyTuple_Size(args) == 0)
         k = 1;
-    return Py_BuildValue("l", _helper_largest(self->root, k));
+    ret = _helper_largest(self->root, k, &ans);
+    if (ret == -1)
+        return NULL;
+    return Py_BuildValue("l", ans);
 }
 
 static PyObject *
@@ -260,32 +270,44 @@ _list_in_order(RBNode *node, PyObject *list, int *pidx)
     return list;
 }
 
-long _helper_smallest(RBNode *node, unsigned long k)
+int _helper_smallest(RBNode *node, unsigned long k, long *ans)
 {
     if (k > node->size)
+    {
         PyErr_SetString(PyExc_IndexError, "Index out of range");
+        return -1;
+    }
     if (node == RBTNIL)
         return 0;
     if (k <= node->left->size)
-        return _helper_smallest(node->left, k);
+        return _helper_smallest(node->left, k, ans);
     else if (node->left->size < k && k <= node->left->size + node->count)
-        return node->key;
+    {
+        *ans = node->key;
+        return 0;
+    }
     else
-        return _helper_smallest(node->right, k - node->left->size - node->count);
+        return _helper_smallest(node->right, k - node->left->size - node->count, ans);
 }
 
-long _helper_largest(RBNode *node, unsigned long k)
+int _helper_largest(RBNode *node, unsigned long k, long *ans)
 {
     if (k > node->size)
+    {
         PyErr_SetString(PyExc_IndexError, "Index out of range");
+        return -1;
+    }
     if (node == RBTNIL)
         return 0;
     if (k <= node->right->size)
-        return _helper_largest(node->right, k);
+        return _helper_largest(node->right, k, ans);
     else if (node->right->size < k && k <= node->right->size + node->count)
-        return node->key;
+    {
+        *ans = node->key;
+        return 0;
+    }
     else
-        return _helper_largest(node->left, k - node->right->size - node->count);
+        return _helper_largest(node->left, k - node->right->size - node->count, ans);
 }
 
 unsigned long _get_rank(RBNode *node, long key)
