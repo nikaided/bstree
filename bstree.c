@@ -50,8 +50,8 @@ RBNode *_get_min(RBNode *);
 RBNode *_get_max(RBNode *);
 RBNode *_get_next(RBNode *);
 RBNode *_get_prev(RBNode *);
-long _helper_smallest(RBNode *, unsigned long);
-long _helper_largest(RBNode *, unsigned long);
+int _helper_smallest(RBNode *, unsigned long, long *);
+int _helper_largest(RBNode *, unsigned long, long *);
 
 // leaf node：every leaf is treated as the same node
 RBNode sentinel =
