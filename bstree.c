@@ -161,9 +161,9 @@ bstree_delete(BSTreeObject *self, PyObject *args)
         yp->left = nodep->left;
         yp->left->parent = yp;
         yp->color = nodep->color;
-        if (y_original_color == BLACK)
-            _delete_fixup(self, xp);
     }
+    if (y_original_color == BLACK)
+        _delete_fixup(self, xp);
     free(nodep);
     Py_RETURN_NONE;
 }
