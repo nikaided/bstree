@@ -41,7 +41,7 @@ RBNode *_search_fixup(BSTreeObject *, long);
 void _left_rotate(BSTreeObject *, RBNode *);
 void _right_rotate(BSTreeObject *, RBNode *);
 void _insert_fixup(BSTreeObject *, RBNode *);
-void _update_size(BSTreeObject *, RBNode *, RBNode *);
+void _update_size(BSTreeObject *, RBNode *);
 void _decrease_node_size(RBNode *, RBNode *);
 void _delete_fixup(BSTreeObject *, RBNode *);
 void _transplant(BSTreeObject *, RBNode *, RBNode *);
@@ -127,54 +127,59 @@ bstree_delete(BSTreeObject *self, PyObject *args)
     self->size -= 1;
 
     RBNode *yp = nodep;
-    RBNode *xp;
+    RBNode *xp, *wp;
     char y_original_color = yp->color;
 
     if (nodep->count > 1)
     {
         nodep->count -= 1;
-        _update_size(self, nodep, self->root);
+        _update_size(self, nodep);
         Py_RETURN_NONE;
     }
     if (nodep->left == RBTNIL && nodep->right == RBTNIL)
     {
         xp = RBTNIL;
         _transplant(self, nodep, xp);
-        _update_size(self, nodep->parent, self->root);
+        _update_size(self, nodep->parent);
     }
     else if (nodep->left == RBTNIL)
     {
         xp = nodep->right;
         _transplant(self, nodep, xp);
-        _update_size(self, xp, self->root);
+        _update_size(self, xp);
     }
     else if (nodep->right == RBTNIL)
     {
         xp = nodep->left;
         _transplant(self, nodep, xp);
-        _update_size(self, xp, self->root);
+        _update_size(self, xp);
     }
     else
     {
         yp = _get_min(nodep->right);
         y_original_color = yp->color;
+        // xp could be RBTNIL
         xp = yp->right;
+        wp = yp->parent;
         if (yp->parent == nodep)
             xp->parent = yp;
         else
         {
-            _transplant(self, yp, yp->right);
+            _transplant(self, yp, xp);
             // making a subtree which root is yp
             yp->right = nodep->right;
             yp->right->parent = yp;
             yp->parent = RBTNIL;
-            _update_size(self, xp, yp);
+            if (xp != RBTNIL)
+                _update_size(self, xp);
+            else
+                _update_size(self, wp);
         }
         _transplant(self, nodep, yp);
         yp->left = nodep->left;
         yp->left->parent = yp;
         yp->color = nodep->color;
-        _update_size(self, yp, self->root);
+        _update_size(self, yp);
     }
     if (y_original_color == BLACK)
         _delete_fixup(self, xp);
@@ -338,14 +343,12 @@ unsigned long _get_rank(RBNode *node, long key)
 
 // from target node to root node, update the size
 // src must not be RBTNIL
-void _update_size(BSTreeObject *self, RBNode *src, RBNode *dst)
+void _update_size(BSTreeObject *self, RBNode *src)
 {
     RBNode *nodep = src;
-    while (1)
+    while (nodep != RBTNIL)
     {
         nodep->size = nodep-> count + nodep->left->size + nodep->right->size;
-        if (nodep == dst)
-            break;
         nodep = nodep->parent;
     }
 }
