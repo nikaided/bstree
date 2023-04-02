@@ -69,9 +69,15 @@ class TestRBTreeSearch:
         tree.insert(0)
         assert not tree.search(1)
 
+    def test_search_deleted(self):
+        tree = BSTree()
+        tree.insert(0)
+        tree.delete(0)
+        assert not tree.search(0)
+
 
 class TestRBTreeDelete:
-    def test_size(self):
+    def test_size_when_deleted_random(self):
         for i in range(100):
             tree = BSTree()
             m = randint(100, 200)
@@ -83,11 +89,6 @@ class TestRBTreeDelete:
             for val in delete_list:
                 tree.delete(val)
             assert tree.size == m - n
-
-    def test_when_delete_not_inserted(self):
-        with pytest.raises(SystemError):
-            tree = BSTree()
-            tree.delete(0)
 
     def test_order_when_deleted_random(self):
         for i in range(100):
@@ -105,6 +106,11 @@ class TestRBTreeDelete:
             expected.sort()
             actual = tree.to_list()
             assert expected == actual
+    
+    def test_when_delete_not_inserted(self):
+        with pytest.raises(SystemError):
+            tree = BSTree()
+            tree.delete(0)
 
 
 class TestRBTreeNextPrev:
@@ -183,6 +189,21 @@ class TestRBTreeKthSmallestLargest:
             li.sort()
             k = randint(1, 100)
             assert tree.kth_smallest(k) == li[k - 1]
+
+    def test_get_kth_smallest_after_deleted(self):
+        for i in range(100):
+            tree = BSTree()
+            insert_list = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
+            for val in insert_list:
+                tree.insert(val)
+            resid_list = insert_list.copy()
+            delete_list = sample(insert_list, 50)
+            for val in delete_list:
+                tree.delete(val)
+                resid_list.remove(val)
+            resid_list.sort()
+            k = randint(1, 50)
+            assert tree.kth_smallest(k) == resid_list[k - 1]
 
     def test_smallest_when_k_is_out_of_range(self):
         tree = BSTree()
