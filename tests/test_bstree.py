@@ -227,6 +227,21 @@ class TestRBTreeKthSmallestLargest:
             li.sort(reverse=True)
             k = randint(1, 100)
             assert tree.kth_largest(k) == li[k - 1]
+    
+    def test_get_kth_largest_after_deleted(self):
+        for i in range(100):
+            tree = BSTree()
+            insert_list = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
+            for val in insert_list:
+                tree.insert(val)
+            resid_list = insert_list.copy()
+            delete_list = sample(insert_list, 50)
+            for val in delete_list:
+                tree.delete(val)
+                resid_list.remove(val)
+            resid_list.sort(reverse=True)
+            k = randint(1, 50)
+            assert tree.kth_largest(k) == resid_list[k - 1]
 
     def test_largest_when_k_is_out_of_range(self):
         tree = BSTree()
@@ -253,14 +268,32 @@ class TestRBTreeRank:
         assert tree.rank(1) == 10
         assert tree.rank(100) == 10
 
-    def test_random(self):
+    def test_inserted_random(self):
         for i in range(100):
             tree = BSTree()
-            li = [randint(-100, 100) for j in range(100)]
-            for val in li:
+            insert_list = [randint(-100, 100) for j in range(100)]
+            for val in insert_list:
                 tree.insert(val)
             k = randint(-200, 200)
             actual = tree.rank(k)
-            li.sort()
-            expected = bisect_left(li, k)
+            insert_list.sort()
+            expected = bisect_left(insert_list, k)
+            assert expected == actual
+
+    def test_deleted_random(self):
+        for i in range(100):
+            tree = BSTree()
+            insert_list = [randint(-100, 100) for j in range(100)]
+            resid_list = insert_list.copy()
+            for val in insert_list:
+                tree.insert(val)
+            delete_list = sample(insert_list, 50)
+            for val in delete_list:
+                tree.delete(val)
+                resid_list.remove(val)
+
+            k = randint(-200, 200)
+            actual = tree.rank(k)
+            resid_list.sort()
+            expected = bisect_left(resid_list, k)
             assert expected == actual
