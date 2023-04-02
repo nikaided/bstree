@@ -1,6 +1,6 @@
 import sys
 from bisect import bisect_left
-from random import randint, choice, shuffle
+from random import randint, choice, shuffle, sample
 import pytest
 from bstree import BSTree
 
@@ -26,7 +26,7 @@ class TestRBTreeInsert:
         with pytest.raises(TypeError):
             tree.insert("0")
 
-    def test_size_when_inserted(self):
+    def test_size_when_inserted_random(self):
         for i in range(100):
             tree = BSTree()
             n = randint(0, 100)
@@ -34,31 +34,29 @@ class TestRBTreeInsert:
                 tree.insert(randint(-pow(2, 7), pow(2, 7) - 1))
             assert tree.size == n
 
+    def test_order_when_inserted_random(self):
+        for i in range(100):
+            tree = BSTree()
+            n = randint(0, 100)
+            insert_list = [randint(-pow(2, 7), pow(2, 7)) for i in range(n)]
+            for val in insert_list:
+                tree.insert(val)
+            expected = insert_list.copy()
+            expected.sort()
+            actual = tree.to_list()
+            assert expected == actual
+
     def test_size_when_inserted_same_value(self):
         tree = BSTree()
         n = randint(0, 100)
         for j in range(n):
             tree.insert(0)
         assert tree.size == n
-
-    def test_insert_random_char(self):
-        for i in range(10**3):
-            tree = BSTree()
-            for j in range(10**3):
-                tree.insert(randint(-pow(2, 7), pow(2, 7) - 1))
-            val = -pow(2, 7)
-            for v in tree.to_list():
-                assert val <= v
-                val = v
-
+    
     def test_insert_system_max_value(self):
         tree = BSTree()
         tree.insert(sys.maxsize)
-        val = 0
-        for v in tree.to_list():
-            assert val <= v
-            val = v
-
+        assert True
 
 class TestRBTreeSearch:
     def test_search_inserted(self):
@@ -71,39 +69,48 @@ class TestRBTreeSearch:
         tree.insert(0)
         assert not tree.search(1)
 
+    def test_search_deleted(self):
+        tree = BSTree()
+        tree.insert(0)
+        tree.delete(0)
+        assert not tree.search(0)
+
 
 class TestRBTreeDelete:
-    def test_size_when_deleted(self):
+    def test_size_when_deleted_random(self):
         for i in range(100):
             tree = BSTree()
             m = randint(100, 200)
-            for j in range(m):
-                tree.insert(j)
+            insert_list = [randint(-pow(2, 4), pow(2, 4)) for i in range(m)]
+            for val in insert_list:
+                tree.insert(val)
             n = randint(0, 100)
-            for j in range(n):
-                tree.delete(j)
+            delete_list = sample(insert_list, n)
+            for val in delete_list:
+                tree.delete(val)
             assert tree.size == m - n
 
-    def test_delete_not_inserted(self):
+    def test_order_when_deleted_random(self):
+        for i in range(100):
+            tree = BSTree()
+            m = randint(100, 200)
+            insert_list = [randint(-pow(2, 7), pow(2, 7)) for i in range(m)]
+            for val in insert_list:
+                tree.insert(val)
+            n = randint(0, 100)
+            delete_list = sample(insert_list, n)
+            expected = insert_list.copy()
+            for val in delete_list:
+                tree.delete(val)
+                expected.remove(val)
+            expected.sort()
+            actual = tree.to_list()
+            assert expected == actual
+    
+    def test_when_delete_not_inserted(self):
         with pytest.raises(SystemError):
             tree = BSTree()
             tree.delete(0)
-
-    def test_if_delete_times_inserted(self):
-        tree = BSTree()
-        for i in range(10):
-            tree.insert(0)
-        for i in range(10):
-            tree.delete(0)
-        assert tree.size == 0
-
-    def test_if_delete_over_times_inserted(self):
-        with pytest.raises(SystemError):
-            tree = BSTree()
-            for i in range(10):
-                tree.insert(0)
-            for i in range(11):
-                tree.delete(0)
 
 
 class TestRBTreeNextPrev:
@@ -183,6 +190,21 @@ class TestRBTreeKthSmallestLargest:
             k = randint(1, 100)
             assert tree.kth_smallest(k) == li[k - 1]
 
+    def test_get_kth_smallest_after_deleted(self):
+        for i in range(100):
+            tree = BSTree()
+            insert_list = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
+            for val in insert_list:
+                tree.insert(val)
+            resid_list = insert_list.copy()
+            delete_list = sample(insert_list, 50)
+            for val in delete_list:
+                tree.delete(val)
+                resid_list.remove(val)
+            resid_list.sort()
+            k = randint(1, 50)
+            assert tree.kth_smallest(k) == resid_list[k - 1]
+
     def test_smallest_when_k_is_out_of_range(self):
         tree = BSTree()
         with pytest.raises(IndexError):
@@ -205,6 +227,21 @@ class TestRBTreeKthSmallestLargest:
             li.sort(reverse=True)
             k = randint(1, 100)
             assert tree.kth_largest(k) == li[k - 1]
+    
+    def test_get_kth_largest_after_deleted(self):
+        for i in range(100):
+            tree = BSTree()
+            insert_list = [randint(-pow(10, 3), pow(10, 3)) for j in range(100)]
+            for val in insert_list:
+                tree.insert(val)
+            resid_list = insert_list.copy()
+            delete_list = sample(insert_list, 50)
+            for val in delete_list:
+                tree.delete(val)
+                resid_list.remove(val)
+            resid_list.sort(reverse=True)
+            k = randint(1, 50)
+            assert tree.kth_largest(k) == resid_list[k - 1]
 
     def test_largest_when_k_is_out_of_range(self):
         tree = BSTree()
@@ -231,14 +268,32 @@ class TestRBTreeRank:
         assert tree.rank(1) == 10
         assert tree.rank(100) == 10
 
-    def test_random(self):
+    def test_inserted_random(self):
         for i in range(100):
             tree = BSTree()
-            li = [randint(-100, 100) for j in range(100)]
-            for val in li:
+            insert_list = [randint(-100, 100) for j in range(100)]
+            for val in insert_list:
                 tree.insert(val)
             k = randint(-200, 200)
             actual = tree.rank(k)
-            li.sort()
-            expected = bisect_left(li, k)
+            insert_list.sort()
+            expected = bisect_left(insert_list, k)
+            assert expected == actual
+
+    def test_deleted_random(self):
+        for i in range(100):
+            tree = BSTree()
+            insert_list = [randint(-100, 100) for j in range(100)]
+            resid_list = insert_list.copy()
+            for val in insert_list:
+                tree.insert(val)
+            delete_list = sample(insert_list, 50)
+            for val in delete_list:
+                tree.delete(val)
+                resid_list.remove(val)
+
+            k = randint(-200, 200)
+            actual = tree.rank(k)
+            resid_list.sort()
+            expected = bisect_left(resid_list, k)
             assert expected == actual

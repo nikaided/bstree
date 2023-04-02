@@ -41,7 +41,7 @@ RBNode *_search_fixup(BSTreeObject *, long);
 void _left_rotate(BSTreeObject *, RBNode *);
 void _right_rotate(BSTreeObject *, RBNode *);
 void _insert_fixup(BSTreeObject *, RBNode *);
-void _update_size_when_deleted(BSTreeObject *, RBNode *);
+void _update_size(BSTreeObject *, RBNode *);
 void _decrease_node_size(RBNode *, RBNode *);
 void _delete_fixup(BSTreeObject *, RBNode *);
 void _transplant(BSTreeObject *, RBNode *, RBNode *);
@@ -50,16 +50,18 @@ RBNode *_get_min(RBNode *);
 RBNode *_get_max(RBNode *);
 RBNode *_get_next(RBNode *);
 RBNode *_get_prev(RBNode *);
-long _helper_smallest(RBNode *, unsigned long);
-long _helper_largest(RBNode *, unsigned long);
+int _helper_smallest(RBNode *, unsigned long, long *);
+int _helper_largest(RBNode *, unsigned long, long *);
 
 // leaf node：every leaf is treated as the same node
+// left, right, parent can take an arbitrary value
 RBNode sentinel =
     {
         .color = BLACK,
         .left = RBTNIL,
         .right = RBTNIL,
-        .parent = NULL};
+        .parent = NULL,
+        .size = 0};
 
 // method definiton
 int bstree_init(BSTreeObject *self, PyObject *args)
@@ -123,47 +125,64 @@ bstree_delete(BSTreeObject *self, PyObject *args)
         return NULL;
 
     self->size -= 1;
-    _update_size_when_deleted(self, nodep);
 
     RBNode *yp = nodep;
-    RBNode *xp;
+    RBNode *xp, *wp;
     char y_original_color = yp->color;
 
     if (nodep->count > 1)
     {
         nodep->count -= 1;
+        _update_size(self, nodep);
         Py_RETURN_NONE;
     }
-    if (nodep->left == RBTNIL)
+    if (nodep->left == RBTNIL && nodep->right == RBTNIL)
+    {
+        xp = RBTNIL;
+        _transplant(self, nodep, xp);
+        _update_size(self, nodep->parent);
+    }
+    else if (nodep->left == RBTNIL)
     {
         xp = nodep->right;
         _transplant(self, nodep, xp);
+        _update_size(self, xp);
     }
     else if (nodep->right == RBTNIL)
     {
         xp = nodep->left;
         _transplant(self, nodep, xp);
+        _update_size(self, xp);
     }
     else
     {
         yp = _get_min(nodep->right);
         y_original_color = yp->color;
+        // xp could be RBTNIL
         xp = yp->right;
+        wp = yp->parent;
         if (yp->parent == nodep)
             xp->parent = yp;
         else
         {
-            _transplant(self, yp, yp->right);
+            _transplant(self, yp, xp);
+            // making a subtree which root is yp
             yp->right = nodep->right;
             yp->right->parent = yp;
+            yp->parent = RBTNIL;
+            if (xp != RBTNIL)
+                _update_size(self, xp);
+            else
+                _update_size(self, wp);
         }
         _transplant(self, nodep, yp);
         yp->left = nodep->left;
         yp->left->parent = yp;
         yp->color = nodep->color;
-        if (y_original_color == BLACK)
-            _delete_fixup(self, xp);
+        _update_size(self, yp);
     }
+    if (y_original_color == BLACK)
+        _delete_fixup(self, xp);
     free(nodep);
     Py_RETURN_NONE;
 }
@@ -274,7 +293,7 @@ int _helper_smallest(RBNode *node, unsigned long k, long *ans)
 {
     if (k > node->size)
     {
-        PyErr_SetString(PyExc_IndexError, "Index out of range");
+        PyErr_SetString(PyExc_IndexError, "Input index out of range");
         return -1;
     }
     if (node == RBTNIL)
@@ -322,24 +341,18 @@ unsigned long _get_rank(RBNode *node, long key)
         return node->left->size;
 }
 
-void _update_size_when_deleted(BSTreeObject *self, RBNode *target)
+// from target node to root node, update the size
+// src must not be RBTNIL
+void _update_size(BSTreeObject *self, RBNode *src)
 {
-    RBNode *node = self->root;
-    _decrease_node_size(node, target);
+    RBNode *nodep = src;
+    while (nodep != RBTNIL)
+    {
+        nodep->size = nodep-> count + nodep->left->size + nodep->right->size;
+        nodep = nodep->parent;
+    }
 }
 
-void _decrease_node_size(RBNode *node, RBNode *target)
-{
-    if (target == RBTNIL)
-        return;
-    node->size -= 1;
-    if (target->key < node->key)
-        _decrease_node_size(node->left, target);
-    else if (target->key > node->key)
-        _decrease_node_size(node->right, target);
-    else
-        return;
-}
 
 // get the node which key is k.
 // If not exist, get RBTNIL.
@@ -591,6 +604,7 @@ void _insert_fixup(BSTreeObject *self, RBNode *nodep)
 }
 
 // remove u, and transplant v where u was
+// v could be RBTNIL
 void _transplant(BSTreeObject *self, RBNode *nodeUp, RBNode *nodeVp)
 {
     if (nodeUp->parent == RBTNIL)
@@ -599,6 +613,8 @@ void _transplant(BSTreeObject *self, RBNode *nodeUp, RBNode *nodeVp)
         nodeUp->parent->left = nodeVp;
     else
         nodeUp->parent->right = nodeVp;
+    // what happens when nodeVp is RBTNIL ?
+    // can take arbitrary value
     nodeVp->parent = nodeUp->parent;
 }
 
