@@ -13,10 +13,17 @@
 #define RED (1)
 #define RBTNIL (&sentinel)
 
+enum IsDup
+{
+    NO_DUP,
+    DUP
+};
+
 typedef struct
 {
     PyObject_HEAD struct rbnode *root;
     unsigned size;
+    enum IsDup is_dup;
     PyObject *captured;
 } BSTreeObject;
 
@@ -42,16 +49,18 @@ void _left_rotate(BSTreeObject *, RBNode *);
 void _right_rotate(BSTreeObject *, RBNode *);
 void _insert_fixup(BSTreeObject *, RBNode *);
 void _update_size(BSTreeObject *, RBNode *);
-void _decrease_node_size(RBNode *, RBNode *);
 void _delete_fixup(BSTreeObject *, RBNode *);
 void _transplant(BSTreeObject *, RBNode *, RBNode *);
 PyObject *_list_in_order(RBNode *, PyObject *, int *);
+PyObject *_sizelist_in_order(RBNode *, PyObject *, int *);
 RBNode *_get_min(RBNode *);
 RBNode *_get_max(RBNode *);
 RBNode *_get_next(RBNode *);
 RBNode *_get_prev(RBNode *);
 int _helper_smallest(RBNode *, unsigned long, long *);
 int _helper_largest(RBNode *, unsigned long, long *);
+void _increment_fixup(unsigned long *, enum IsDup);
+
 
 // leaf node：every leaf is treated as the same node
 // left, right, parent can take an arbitrary value
@@ -64,10 +73,25 @@ RBNode sentinel =
         .size = 0};
 
 // method definiton
-int bstree_init(BSTreeObject *self, PyObject *args)
+int bstree_init(BSTreeObject *self, PyObject *args, PyObject *kwargs)
 {
+    int dup = 0;
+    static char *kwlists[] = {"dup", NULL};
+    // PyObject_Print(args, stdout, 0);
+    // fprintf(stdout, "\n");
+    // PyObject_Print(kwargs, stdout, 0);
+    // fprintf(stdout, "\n");
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|p", kwlists, &dup))
+        return -1;
+
+    // [TODO] Here validate if the arg is not float value
     self->root = RBTNIL;
     self->size = 0;
+    if (dup == 0)
+        self->is_dup = NO_DUP;
+    else
+        self->is_dup = DUP;
     return 0;
 }
 
@@ -81,25 +105,31 @@ bstree_insert(BSTreeObject *self, PyObject *args)
     }
     // create a node first
     RBNode *nodep = _create_node(key);
-    self->size += 1;
+    // self->size += 1;
 
     RBNode *yp = RBTNIL;
     RBNode *xp = self->root;
     while (xp != RBTNIL)
     {
-        xp->size += 1;
+        // xp->size += 1;
         yp = xp;
         if (nodep->key < xp->key)
             xp = xp->left;
         else if (nodep->key > xp->key)
             xp = xp->right;
+        // if the node already exists, just increase the node count and
+        // the whole tree size, only when dup is true.
         else
         {
-            xp->count += 1;
+            _increment_fixup(&(xp->count), self->is_dup);
+            _increment_fixup(&(self->size), self->is_dup);
+            _update_size(self, xp);
             free(nodep);
             Py_RETURN_NONE;
         }
     }
+    // if the node doesn't exist, just increase the whole tree size.
+    self->size += 1;
     nodep->parent = yp;
     if (yp == RBTNIL)
         self->root = nodep;
@@ -107,6 +137,7 @@ bstree_insert(BSTreeObject *self, PyObject *args)
         yp->left = nodep;
     else
         yp->right = nodep;
+    _update_size(self, nodep);
     nodep->color = RED;
     _insert_fixup(self, nodep);
     Py_RETURN_NONE;
@@ -212,6 +243,19 @@ bstree_list(BSTreeObject *self, PyObject *args)
     return _list_in_order(node, list, &idx);
 }
 
+
+// return a list in ascending order
+static PyObject *
+bstree_sizelist(BSTreeObject *self, PyObject *args)
+{
+    PyObject *list;
+    int idx;
+    idx = 0;
+    list = PyList_New(self->size);
+    RBNode *node = self->root;
+    return _sizelist_in_order(node, list, &idx);
+}
+
 static PyObject *
 bstree_min(BSTreeObject *self, PyObject *args)
 {
@@ -289,6 +333,30 @@ _list_in_order(RBNode *node, PyObject *list, int *pidx)
     return list;
 }
 
+static PyObject *
+_sizelist_in_order(RBNode *node, PyObject *list, int *pidx)
+{
+    if (node->left != RBTNIL)
+        list = _sizelist_in_order(node->left, list, pidx);
+
+    for (int i = 0; i < node->count; i++)
+        PyList_SET_ITEM(list, *pidx + i, PyLong_FromLong(node->size));
+    *pidx += node->count;
+
+    if (node->right != RBTNIL)
+        list = _sizelist_in_order(node->right, list, pidx);
+
+    return list;
+}
+
+
+// [TODO] take care of overflow
+void _increment_fixup(unsigned long *x, enum IsDup d)
+{
+    if (d == DUP)
+        *x += 1;
+}
+
 int _helper_smallest(RBNode *node, unsigned long k, long *ans)
 {
     if (k > node->size)
@@ -343,6 +411,9 @@ unsigned long _get_rank(RBNode *node, long key)
 
 // from target node to root node, update the size
 // src must not be RBTNIL
+/// @brief update all nodes size when target node is deleted
+/// @param self 
+/// @param src 
 void _update_size(BSTreeObject *self, RBNode *src)
 {
     RBNode *nodep = src;
@@ -705,6 +776,7 @@ static PyMethodDef bstree_class_methods[] =
         {"delete", (PyCFunction)bstree_delete, METH_VARARGS, "delete an integer"},
         {"search", (PyCFunction)bstree_search, METH_VARARGS, "search an integer"},
         {"to_list", (PyCFunction)bstree_list, METH_VARARGS, "list in order"},
+        {"to_sizelist", (PyCFunction)bstree_sizelist, METH_VARARGS, "list in order"},
         {"next_to", (PyCFunction)bstree_next, METH_VARARGS, "get a next value"},
         {"prev_to", (PyCFunction)bstree_prev, METH_VARARGS, "get a prev value"},
         {"min", (PyCFunction)bstree_min, METH_NOARGS, "get a minimum value"},
