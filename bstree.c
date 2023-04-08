@@ -13,6 +13,8 @@
 #define RED (1)
 #define RBTNIL (&sentinel)
 
+// whether tree holds duplicated key or not
+// if so, node count will increase.
 enum IsDup
 {
     NO_DUP,
@@ -29,7 +31,6 @@ typedef struct
 
 typedef struct rbnode
 {
-    // key
     long key;
     unsigned long size;
     unsigned long count;
@@ -62,7 +63,7 @@ int _helper_largest(RBNode *, unsigned long, long *);
 void _increment_fixup(unsigned long *, enum IsDup);
 
 
-// leaf node：every leaf is treated as the same node
+// every leaf is treated as the same node
 // left, right, parent can take an arbitrary value
 RBNode sentinel =
     {
@@ -105,13 +106,11 @@ bstree_insert(BSTreeObject *self, PyObject *args)
     }
     // create a node first
     RBNode *nodep = _create_node(key);
-    // self->size += 1;
 
     RBNode *yp = RBTNIL;
     RBNode *xp = self->root;
     while (xp != RBTNIL)
     {
-        // xp->size += 1;
         yp = xp;
         if (nodep->key < xp->key)
             xp = xp->left;
@@ -244,7 +243,7 @@ bstree_list(BSTreeObject *self, PyObject *args)
 }
 
 
-// return a list in ascending order
+// return a sizelist in ascending order
 static PyObject *
 bstree_sizelist(BSTreeObject *self, PyObject *args)
 {
@@ -491,10 +490,14 @@ RBNode *_get_max(RBNode *nodep)
     return zp;
 }
 
+/// @brief get the key of the next node. 
+/// doesn't matter if the arg key is in the tree or not.
+/// @param self 
+/// @param args arg key
+/// @return 
 static PyObject *
 bstree_next(BSTreeObject *self, PyObject *args)
 {
-    RBNode *_get_next(RBNode *);
     long k;
     if (!PyArg_ParseTuple(args, "l", &k))
     {
@@ -516,6 +519,11 @@ bstree_next(BSTreeObject *self, PyObject *args)
     }
 }
 
+/// @brief get the key of the previous node. 
+/// doesn't matter if the arg key is in the tree or not.
+/// @param self 
+/// @param args arg key
+/// @return 
 static PyObject *
 bstree_prev(BSTreeObject *self, PyObject *args)
 {
@@ -557,6 +565,8 @@ RBNode *_get_next(RBNode *nodep)
     return pp;
 }
 
+// get the value of node which is prev to nodep
+// if no node, return RBTNIL
 // assuming that nodep is in the tree
 RBNode *_get_prev(RBNode *nodep)
 {
