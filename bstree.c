@@ -83,7 +83,8 @@ int bstree_init(BSTreeObject *self, PyObject *args, PyObject *kwargs)
     // PyObject_Print(kwargs, stdout, 0);
     // fprintf(stdout, "\n");
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|p", kwlists, &dup))
+    // dup argument is optional, and should be integer if provided.
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|i", kwlists, &dup))
         return -1;
 
     // [TODO] Here validate if the arg is not float value

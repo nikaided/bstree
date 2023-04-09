@@ -24,6 +24,15 @@ class TestRBTreeInit:
         tree = BSTree(dup=False)
         assert True
 
+    def test_keyword_tricky_argument(self):
+        tree = BSTree(1)
+        tree = BSTree(0)
+        tree = BSTree(2)
+        tree = BSTree(-1)
+        tree = BSTree(0==0)
+        tree = BSTree(0==1)
+        assert True
+
     def test_if_argument_is_float(self):
         """want to raise exception but not satisfied yet
         because python evauates non-zero value as True"""
