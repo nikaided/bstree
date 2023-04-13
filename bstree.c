@@ -14,7 +14,7 @@
 #define RBTNIL (&sentinel)
 
 // compare a with b and return -1, 0, 1
-typedef int (*rbt_comparator) (const long a, const long b, void *arg);
+typedef int (*RBTComparator) (const long a, const long b, void *arg);
 
 // whether tree holds duplicated key or not
 // if so, node count will increase.
@@ -29,7 +29,7 @@ typedef struct
     PyObject_HEAD struct rbnode *root;
     unsigned size;
     enum IsDup is_dup;
-    rbt_comparator comparator;
+    RBTComparator comparator;
     PyObject *captured;
 } BSTreeObject;
 
@@ -48,8 +48,8 @@ typedef struct rbnode
 
 // private function declaration
 RBNode *_create_node(long);
-RBNode *_search(BSTreeObject *, long);
-RBNode *_search_fixup(BSTreeObject *, long);
+RBNode *_search(RBNode *, RBTComparator, long);
+RBNode *_search_fixup(RBNode *, RBTComparator, long);
 void _left_rotate(BSTreeObject *, RBNode *);
 void _right_rotate(BSTreeObject *, RBNode *);
 void _insert_fixup(BSTreeObject *, RBNode *);
@@ -62,6 +62,7 @@ RBNode *_get_min(RBNode *);
 RBNode *_get_max(RBNode *);
 RBNode *_get_next(RBNode *);
 RBNode *_get_prev(RBNode *);
+unsigned long _get_rank(RBNode *, RBTComparator, long key);
 int _helper_smallest(RBNode *, unsigned long, long *);
 int _helper_largest(RBNode *, unsigned long, long *);
 void _increment_fixup(unsigned long *, enum IsDup);
@@ -157,7 +158,7 @@ bstree_insert(BSTreeObject *self, PyObject *args)
     nodep->parent = yp;
     if (yp == RBTNIL)
         self->root = nodep;
-    else if (_comparator(nodep->key, yp->key, (void *)NULL) > 0)
+    else if (self->comparator(nodep->key, yp->key, (void *)NULL) > 0)
         yp->left = nodep;
     // else if (nodep->key < yp->key)
     //     yp->left = nodep;
@@ -178,7 +179,7 @@ bstree_delete(BSTreeObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "l", &key))
         return NULL;
 
-    if ((nodep = _search(self, key)) == RBTNIL)
+    if ((nodep = _search(self->root, self->comparator, key)) == RBTNIL)
         return NULL;
 
     self->size -= 1;
@@ -251,7 +252,7 @@ bstree_search(BSTreeObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "l", &key))
         return NULL;
 
-    if (_search(self, key) == RBTNIL)
+    if (_search(self->root, self->comparator, key) == RBTNIL)
         return Py_False;
     else
         return Py_True;
@@ -335,12 +336,11 @@ bstree_kth_largest(BSTreeObject *self, PyObject *args)
 static PyObject *
 bstree_rank(BSTreeObject *self, PyObject *args)
 {
-    unsigned long _get_rank(RBNode *, long);
     long key;
     if (!PyArg_ParseTuple(args, "l", &key))
         return NULL;
 
-    return Py_BuildValue("k", _get_rank(self->root, key));
+    return Py_BuildValue("k", _get_rank(self->root, self->comparator, key));
 }
 
 static PyObject *
@@ -423,16 +423,16 @@ int _helper_largest(RBNode *node, unsigned long k, long *ans)
         return _helper_largest(node->left, k - node->right->size - node->count, ans);
 }
 
-unsigned long _get_rank(RBNode *node, long key)
+unsigned long _get_rank(RBNode *node, RBTComparator comp, long key)
 {
     if (node == RBTNIL)
         return 0;
     // if (key < node->key)
-    if (_comparator(key, node->key, (void *)NULL) > 0)
-        return _get_rank(node->left, key);
+    if (comp(key, node->key, (void *)NULL) > 0)
+        return _get_rank(node->left, comp, key);
     // else if (key > node->key)
-    else if (_comparator(key, node->key, (void *)NULL) < 0)
-        return node->left->size + node->count + _get_rank(node->right, key);
+    else if (comp(key, node->key, (void *)NULL) < 0)
+        return node->left->size + node->count + _get_rank(node->right, comp, key);
     else
         return node->left->size;
 }
@@ -453,16 +453,16 @@ void _update_size(BSTreeObject *self, RBNode *src)
 }
 
 
-// get the node which key is k.
+// get the node which key is k, when nodep is a root
 // If not exist, get RBTNIL.
-RBNode *_search(BSTreeObject *self, long k)
+RBNode *_search(RBNode *nodep, RBTComparator comp, long k)
 {
-    RBNode *zp = self->root;
+    RBNode *zp = nodep;
     // while (zp != RBTNIL && k != zp->key)
-    while (zp != RBTNIL && _comparator(k, zp->key, (void *)NULL) != 0)
+    while (zp != RBTNIL && comp(k, zp->key, (void *)NULL) != 0)
     {
         // if (k < zp->key)
-        if (_comparator(k, zp->key, (void *)NULL) > 0)
+        if (comp(k, zp->key, (void *)NULL) > 0)
             zp = zp->left;
         else
             zp = zp->right;
@@ -472,19 +472,19 @@ RBNode *_search(BSTreeObject *self, long k)
 
 // get the node which key is k.
 // If not exist, get RBTNIL.
-RBNode *_search_fixup(BSTreeObject *self, long k)
+RBNode *_search_fixup(RBNode *nodep, RBTComparator comp, long k)
 {
-    RBNode *zp = self->root;
+    RBNode *zp = nodep;
     if (zp == RBTNIL)
         return RBTNIL;
     // while (k != zp->key)
-    while (_comparator(k, zp->key, (void *)NULL) != 0)
+    while (comp(k, zp->key, (void *)NULL) != 0)
     {
         // if (k < zp->key && zp->left != RBTNIL)
-        if (_comparator(k, zp->key, (void *)NULL) > 0 && zp->left != RBTNIL)
+        if (comp(k, zp->key, (void *)NULL) > 0 && zp->left != RBTNIL)
             zp = zp->left;
         // else if (k > zp->key && zp->right != RBTNIL)
-        else if (_comparator(k, zp->key, (void *)NULL) < 0 && zp->right != RBTNIL)
+        else if (comp(k, zp->key, (void *)NULL) < 0 && zp->right != RBTNIL)
             zp = zp->right;
         else
             break;
@@ -538,11 +538,11 @@ bstree_next(BSTreeObject *self, PyObject *args)
         PyErr_SetString(PyExc_TypeError, "Argument Invalid");
         return NULL;
     }
-    RBNode *nodep = _search_fixup(self, k);
+    RBNode *nodep = _search_fixup(self->root, self->comparator, k);
     if (nodep == RBTNIL)
         Py_RETURN_NONE;
     // else if (nodep->key > k)
-    else if (_comparator(nodep->key, k, (void *)NULL) < 0)
+    else if (self->comparator(nodep->key, k, (void *)NULL) < 0)
         return Py_BuildValue("l", nodep->key);
     else
     {
@@ -568,11 +568,11 @@ bstree_prev(BSTreeObject *self, PyObject *args)
         PyErr_SetString(PyExc_TypeError, "Argument Invalid");
         return NULL;
     }
-    RBNode *nodep = _search_fixup(self, k);
+    RBNode *nodep = _search_fixup(self->root, self->comparator, k);
     if (nodep == RBTNIL)
         Py_RETURN_NONE;
     // else if (nodep->key < k)
-    else if (_comparator(nodep->key, k, (void *)NULL) > 0)
+    else if (self->comparator(nodep->key, k, (void *)NULL) > 0)
         return Py_BuildValue("l", nodep->key);
     else
     {
