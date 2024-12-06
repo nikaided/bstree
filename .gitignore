@@ -7,5 +7,4 @@ dist/*
 *.gch
 *.html
 
-*test_cases.py
-d/*
+data
