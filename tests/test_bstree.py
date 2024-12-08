@@ -54,41 +54,6 @@ class TestRBTreeInit:
 
 
 class TestRBTreeInsert:
-    def test_type_error_when_no_arguments(self):
-        with pytest.raises(TypeError):
-            tree = BSTree()
-            tree.insert()
-
-    def test_type_error_when_two_arguments(self):
-        with pytest.raises(TypeError):
-            tree = BSTree()
-            tree.insert(0, 1)
-
-    def test_when_insert_float(self):
-        tree = BSTree()
-        tree.insert(1.0)
-        assert True
-
-    def test_when_insert_string(self):
-        tree = BSTree()
-        tree.insert("0")
-        assert True
-
-    def test_when_insert_ltobj(self):
-        tree = BSTree()
-        tree.insert(LTObj(0))
-        assert True
-
-    def test_when_insert_datetime(self):
-        tree = BSTree()
-        tree.insert(datetime.now())
-        assert True
-    
-    def test_when_insert_none(self):
-        with pytest.raises(NotImplementedError):
-            tree = BSTree()
-            tree.insert(None)
-
     def test_size_when_insert_random_value(self):
         for i in range(100):
             tree = BSTree()

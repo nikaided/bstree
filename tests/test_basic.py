@@ -1,10 +1,8 @@
 from datetime import datetime
-from bisect import bisect_left
 
 from bstree import BSTree
 from mock_object import LTObj
 
-import numpy as np
 
 def test_intobj():
     tree = BSTree()
@@ -28,5 +26,6 @@ def test_datetimeobj():
     tree.insert(datetime(2020, 1, 3))
     tree.insert(datetime(2020, 1, 7))
     assert tree.to_list() == [datetime(2020, 1, 3), datetime(2020, 1, 5), datetime(2020, 1, 7)]
+
 
 test_ltobj()

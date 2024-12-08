@@ -77,9 +77,10 @@ int _helper_largest(RBNode *, unsigned long, PyObject *);
 void _increment_fixup(unsigned long *, enum IsDup);
 
 int _lt_long(const RBNode *, const RBNode *);
-int _lt(const RBNode *, const RBNode *);
-int _gt(const RBNode *, const RBNode *);
+int _lt_double(const RBNode *, const RBNode *);
+int _lt_obj(const RBNode *, const RBNode *);
 int _compare(const RBNode *, const RBNode *, CompareOperator);
+int _can_be_treated_as_c_long(PyObject *);
 
 // every leaf is treated as the same node
 // left, right, parent can take an arbitrary value
@@ -124,67 +125,67 @@ int _lt_long(const RBNode *a, const RBNode *b)
     return value_a < value_b ? 1 : 0;
 }
 
+int _lt_double(const RBNode *a, const RBNode *b)
+{
+    double value_a = PyFloat_AsDouble(a->key);
+    double value_b = PyFloat_AsDouble(b->key);
+
+    // a->key or b->key might be python int type
+    if (value_a == -1 && PyErr_Occurred())
+    {
+        if ((value_a = (double)PyLong_AsLong(a->key)) != -1)
+            PyErr_Clear();
+        else
+            return COMPARE_ERR;
+    }
+    if (value_b == -1 && PyErr_Occurred())
+    {
+        if ((value_b = (double)PyLong_AsLong(b->key)) != -1)
+            PyErr_Clear();
+        else
+            return COMPARE_ERR;
+    }
+    return value_a < value_b ? 1 : 0;
+}
+
 // if a < b return 1, elif a >= b return 0, else return COMPARE_ERR.
-int _lt(const RBNode *a, const RBNode *b)
+int _lt_obj(const RBNode *a, const RBNode *b)
 {
-    PyObject *result;
     PyObject *lt_name = PyUnicode_InternFromString("__lt__");
+    PyObject *lt_result = PyObject_CallMethodObjArgs(a->key, lt_name, b->key, NULL);
+    if (lt_result != NULL && PyBool_Check(lt_result))
+    {
+        if (PyObject_IsTrue((PyObject *)lt_result))
+        {
+            Py_DECREF(lt_result);
+            return 1; // when a < b
+        }
+        else
+        {
+            Py_DECREF(lt_result);
+            return 0; // when a >= b
+        }
+    }
 
-    // call __lt__() method
-    result = PyObject_CallMethodObjArgs(
-        (PyObject *)(a->key), // object
-        lt_name,              // method name（string）
-        (PyObject *)(b->key), // comparison target
-        NULL);
-    if (result == NULL)
-    {
-        PyErr_SetString(PyExc_TypeError, "__lt__() invoke Error");
-        return COMPARE_ERR;
-    }
-    // check if result is boolean type(True or False)
-    if (!PyBool_Check(result))
-    {
-        PyErr_SetString(PyExc_TypeError, "__lt__() must return a boolean value");
-        Py_DECREF(result);
-        return COMPARE_ERR;
-    }
-    if (PyObject_IsTrue((PyObject *)result))
-    {
-        Py_DECREF(result);
-        return 1; // when a < b
-    }
-    else
-    {
-        Py_DECREF(result);
-        return 0;    
-    }
-}
-
-// if a > b return 1, elif a >= b return 0, else return COMPARE_ERR
-int _gt(const RBNode *a, const RBNode *b)
-{
-    PyObject *result;
     PyObject *gt_name = PyUnicode_InternFromString("__gt__");
-
-    // call __gt__() method
-    result = PyObject_CallMethodObjArgs(
-        (PyObject *)(a->key), // object
-        gt_name,              // method name（string）
-        (PyObject *)(b->key), // comparison target
-        NULL);
-    if (result == NULL)
+    PyObject *gt_result = PyObject_CallMethodObjArgs(b->key, gt_name, a->key, NULL);
+    if (gt_result != NULL && PyBool_Check(gt_result))
     {
-        PyErr_SetString(PyExc_TypeError, "__gt__() invoke Error");
-        return COMPARE_ERR;
+        if (PyObject_IsTrue((PyObject *)gt_result))
+        {
+            Py_DECREF(gt_result);
+            return 1; // when b > a
+        }
+        else
+        {
+            Py_DECREF(gt_result);
+            return 0; // when b <= a
+        }
     }
-    if (PyObject_IsTrue((PyObject *)result))
-    {
-        Py_DECREF(result);
-        return 1; // when a > b
-    }
-    Py_DECREF(result);
-    return 0;
+    PyErr_SetString(PyExc_TypeError, "Compare Error");
+    return COMPARE_ERR;
 }
+
 
 // if a < b return 1, elif a > b return -1, elif a == b return 0 else return COMPARE_ERR
 int _compare(const RBNode *a, const RBNode *b, CompareOperator comp)
@@ -201,16 +202,27 @@ int _compare(const RBNode *a, const RBNode *b, CompareOperator comp)
     }
     else if (a_comp_b == 1 && b_comp_a == 0)
     {
-        return (comp == _lt) || (comp == _lt_long) ? 1 : -1;        
+        return 1;  
     }
     else if (a_comp_b == 0 && b_comp_a == 1)
     {
-        return (comp == _lt) || (comp == _lt_long) ? -1 : 1;
+        return -1;
     }
     else
     {
         return COMPARE_ERR;
     }
+}
+
+
+// check if the python object can be handled as a long type in c 
+int _can_be_treated_as_c_long(PyObject *obj)
+{
+    if (PyLong_AsLong(obj) == -1 && PyErr_Occurred()) {
+        PyErr_Clear();
+        return 0;
+    }
+    return 1;
 }
 
 
@@ -234,44 +246,77 @@ bstree_insert(BSTreeObject *self, PyObject *args)
     // if the object is Nonetype, raise NotImplementedError
     if (obj == Py_None)
     {
-        PyErr_SetString(PyExc_NotImplementedError, "NoneType is not supported");
+        PyErr_SetString(PyExc_TypeError, "NoneType is not supported");
         return NULL;
     }
 
-    // validate the object
-    if (self->ope == NULL || self->ope == _lt_long)
+    // validate the object and determine the comparison operator
+    if (self->ope == NULL)
     {
+        // python3 always treat any large or small integer as int type
+        // but c can not handle it as long type if its value is too large or too small
         if (PyLong_Check(obj))
         {
-            self->ope = _lt_long;
+            if (_can_be_treated_as_c_long(obj))
+            {
+                self->ope = _lt_long;
+                // printf("comp changed from null to _lt_long\n");
+            }
+            else
+            {
+                self->ope = _lt_double;
+                // printf("comp changed from null to _lt_double\n");
+            }
         }
-        else if (PyObject_HasAttrString(obj, "__lt__"))
+        else if (PyFloat_Check(obj))
         {
-            self->ope = _lt;
-        }
-        else if (PyObject_HasAttrString(obj, "__gt__"))
-        {
-            self->ope = _gt;
+            self->ope = _lt_double;
+            // printf("comp changed from null to _lt_double\n");
         }
         else
         {
-            PyErr_SetString(PyExc_TypeError, "Object must have __lt__() or __gt__() method");
-            return NULL;
+            self->ope = _lt_obj;
+            // printf("comp changed from null to _lt_obj\n");
         }
     }
-    else if (self->ope == _lt || self->ope == _gt)
+    else if (self->ope == _lt_long)
     {
-        // extract the string of self->compartor and check if obj has the method
-        PyObject *comp_name = (self->ope == _lt) ? 
-            PyUnicode_InternFromString("__lt__") : 
-            PyUnicode_InternFromString("__gt__");
-        if (!PyObject_HasAttr(obj, comp_name))
+        if (PyLong_Check(obj))
         {
-            // specify the method in the error message
-            PyErr_SetString(PyExc_TypeError, "Object must have __lt__() or __gt__() method");
-            return NULL;
+            if (!_can_be_treated_as_c_long(obj))
+            {
+                self->ope = _lt_double;
+                // printf("comp changed from _lt_long to _lt_double\n");
+            }
+        }
+        else if (PyFloat_Check(obj))
+        {
+            self->ope = _lt_double;
+            // printf("comp changed from _lt_long to _lt_double\n");
+        }
+        else
+        {
+            self->ope = _lt_obj;
+            // printf("comp changed from _lt_long to _lt_obj\n");
         }
     }
+    else if (self->ope == _lt_double)
+    {
+        if (!PyFloat_Check(obj))
+        {
+            if (PyLong_Check(obj))
+            {
+                ;
+            }
+            else
+            {
+                self->ope = _lt_obj;
+                // printf("comp changed from _lt_double to _lt_obj\n");
+            }
+        }
+    }
+    
+    
     // create a node first
     RBNode *nodep = _create_node(obj, INC_REF);
 

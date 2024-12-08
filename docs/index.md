@@ -55,14 +55,3 @@ print(f"The 3rd smallest value is: {third_smallest}")
 rank_of_10 = tree.rank(10)
 print(f"The rank of 10 is: {rank_of_10}")
 ```
-
----
-## 📓 Additional Information 📓
-For more details, visit the following pages:
-
-- [Documentation Home]()
-- [API Reference]()
-- [Performance Measurements]()
-
-## 📝 License 📝
-This project is licensed under the MIT License - see the LICENSE for details.

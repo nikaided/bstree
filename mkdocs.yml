@@ -1,0 +1,9 @@
+site_name: BSTree(Self-Balanced Binary Search Tree)
+
+theme:
+  name: mkdocs
+
+nav:
+  - Home: index.md
+  - API References: apis.md
+  - Performance: performance.md

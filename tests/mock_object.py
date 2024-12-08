@@ -1,3 +1,10 @@
+class NoCmpObj:
+    def __init__(self, val):
+        self.val = val
+
+    def __sub__(self, other):
+        return self.val - other.val
+
 class LTObj:
     def __init__(self, val):
         self.val = val
