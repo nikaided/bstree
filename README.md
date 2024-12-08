@@ -22,7 +22,7 @@ from bstree import BSTree
 # dup option should be True if duplicated value is permitted else False
 # default dup value is False
 bst = BSTree()
-bst = BSTree(model="treap", dup=True)
+bst = BSTree(dup=True)
 
 # insert an element
 # should be integer for the moment

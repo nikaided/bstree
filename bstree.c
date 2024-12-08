@@ -13,8 +13,24 @@
 #define RED (1)
 #define RBTNIL (&sentinel)
 
+#define COMPARE_ERR INT_MIN
+#define INC_REF 1
+#define KEEP_REF 0
+#define DEC_REF -1
+
+typedef struct rbnode
+{
+    PyObject *key;
+    unsigned long size;
+    unsigned long count;
+    char color;
+    struct rbnode *parent;
+    struct rbnode *left;
+    struct rbnode *right;
+} RBNode;
+
 // compare a with b and return -1, 0, 1
-typedef int (*RBTComparator) (const long a, const long b, void *arg);
+typedef int (*CompareOperator)(const RBNode *, const RBNode *);
 
 // whether tree holds duplicated key or not
 // if so, node count will increase.
@@ -26,49 +42,44 @@ enum IsDup
 
 typedef struct
 {
-    PyObject_HEAD struct rbnode *root;
+    PyObject_HEAD
+    struct rbnode *root;
     unsigned size;
     enum IsDup is_dup;
-    RBTComparator comparator;
+    CompareOperator ope;
     PyObject *captured;
 } BSTreeObject;
-
-typedef struct rbnode
-{
-    long key;
-    unsigned long size;
-    unsigned long count;
-    char color;
-    struct rbnode *parent;
-    struct rbnode *left;
-    struct rbnode *right;
-} RBNode;
 
 #endif // BSTREE_H
 
 // private function declaration
-RBNode *_create_node(long);
-RBNode *_search(RBNode *, RBTComparator, long);
-RBNode *_search_fixup(RBNode *, RBTComparator, long);
+RBNode *_create_node(PyObject *, int);
+void _delete_node(RBNode *, int);
+RBNode *_search(RBNode *, CompareOperator, PyObject *);
+RBNode *_search_fixup(RBNode *, CompareOperator, PyObject *);
 void _left_rotate(BSTreeObject *, RBNode *);
 void _right_rotate(BSTreeObject *, RBNode *);
 void _insert_fixup(BSTreeObject *, RBNode *);
 void _update_size(BSTreeObject *, RBNode *);
 void _delete_fixup(BSTreeObject *, RBNode *);
 void _transplant(BSTreeObject *, RBNode *, RBNode *);
-PyObject *_list_in_order(RBNode *, PyObject *, int *);
+PyObject *_list_in_order(RBNode *, PyObject *, int *, int);
 PyObject *_sizelist_in_order(RBNode *, PyObject *, int *);
+PyObject *_get_counter(RBNode *, PyObject *);
+
 RBNode *_get_min(RBNode *);
 RBNode *_get_max(RBNode *);
 RBNode *_get_next(RBNode *);
 RBNode *_get_prev(RBNode *);
-unsigned long _get_rank(RBNode *, RBTComparator, long key);
-int _helper_smallest(RBNode *, unsigned long, long *);
-int _helper_largest(RBNode *, unsigned long, long *);
+unsigned long _get_rank(RBNode *, RBNode *, CompareOperator);
+int _helper_smallest(RBNode *, unsigned long, PyObject *);
+int _helper_largest(RBNode *, unsigned long, PyObject *);
 void _increment_fixup(unsigned long *, enum IsDup);
-int _comparator(const long, const long, void *);
 
-
+int _lt_long(const RBNode *, const RBNode *);
+int _lt(const RBNode *, const RBNode *);
+int _gt(const RBNode *, const RBNode *);
+int _compare(const RBNode *, const RBNode *, CompareOperator);
 
 // every leaf is treated as the same node
 // left, right, parent can take an arbitrary value
@@ -85,63 +96,205 @@ int bstree_init(BSTreeObject *self, PyObject *args, PyObject *kwargs)
 {
     int dup = 0;
     static char *kwlists[] = {"dup", NULL};
-    // PyObject_Print(args, stdout, 0);
-    // fprintf(stdout, "\n");
-    // PyObject_Print(kwargs, stdout, 0);
-    // fprintf(stdout, "\n");
 
     // dup argument is optional, and should be integer if provided.
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|i", kwlists, &dup))
         return -1;
 
-    // [TODO] Here validate if the arg is not float value
     self->root = RBTNIL;
     self->size = 0;
     if (dup == 0)
         self->is_dup = NO_DUP;
     else
         self->is_dup = DUP;
-    self->comparator = _comparator;
+    self->ope = NULL;
     return 0;
 }
 
-// if a < b return 1, elif a > b return -1, else return 0
-int _comparator(const long a, const long b, void *arg)
+int _lt_long(const RBNode *a, const RBNode *b)
 {
-    // b - a
-    if (a < b)
-        return 1;
-    else if (a > b)
-        return -1;
-    else
-        return 0;
+    long value_a = PyLong_AsLong(a->key);
+    long value_b = PyLong_AsLong(b->key);
+
+    if (value_a == -1 && PyErr_Occurred())
+        return COMPARE_ERR;
+    if (value_b == -1 && PyErr_Occurred())
+        return COMPARE_ERR;
+
+    return value_a < value_b ? 1 : 0;
 }
 
+// if a < b return 1, elif a >= b return 0, else return COMPARE_ERR.
+int _lt(const RBNode *a, const RBNode *b)
+{
+    PyObject *result;
+    PyObject *lt_name = PyUnicode_InternFromString("__lt__");
+
+    // call __lt__() method
+    result = PyObject_CallMethodObjArgs(
+        (PyObject *)(a->key), // object
+        lt_name,              // method name（string）
+        (PyObject *)(b->key), // comparison target
+        NULL);
+    if (result == NULL)
+    {
+        PyErr_SetString(PyExc_TypeError, "__lt__() invoke Error");
+        return COMPARE_ERR;
+    }
+    // check if result is boolean type(True or False)
+    if (!PyBool_Check(result))
+    {
+        PyErr_SetString(PyExc_TypeError, "__lt__() must return a boolean value");
+        Py_DECREF(result);
+        return COMPARE_ERR;
+    }
+    if (PyObject_IsTrue((PyObject *)result))
+    {
+        Py_DECREF(result);
+        return 1; // when a < b
+    }
+    else
+    {
+        Py_DECREF(result);
+        return 0;    
+    }
+}
+
+// if a > b return 1, elif a >= b return 0, else return COMPARE_ERR
+int _gt(const RBNode *a, const RBNode *b)
+{
+    PyObject *result;
+    PyObject *gt_name = PyUnicode_InternFromString("__gt__");
+
+    // call __gt__() method
+    result = PyObject_CallMethodObjArgs(
+        (PyObject *)(a->key), // object
+        gt_name,              // method name（string）
+        (PyObject *)(b->key), // comparison target
+        NULL);
+    if (result == NULL)
+    {
+        PyErr_SetString(PyExc_TypeError, "__gt__() invoke Error");
+        return COMPARE_ERR;
+    }
+    if (PyObject_IsTrue((PyObject *)result))
+    {
+        Py_DECREF(result);
+        return 1; // when a > b
+    }
+    Py_DECREF(result);
+    return 0;
+}
+
+// if a < b return 1, elif a > b return -1, elif a == b return 0 else return COMPARE_ERR
+int _compare(const RBNode *a, const RBNode *b, CompareOperator comp)
+{
+    int a_comp_b = comp(a, b);
+    int b_comp_a = comp(b, a);
+    if (a_comp_b == COMPARE_ERR || b_comp_a == COMPARE_ERR)
+    {
+        return COMPARE_ERR;
+    }
+    if (a_comp_b == 0 && b_comp_a == 0)
+    {
+        return 0;
+    }
+    else if (a_comp_b == 1 && b_comp_a == 0)
+    {
+        return (comp == _lt) || (comp == _lt_long) ? 1 : -1;        
+    }
+    else if (a_comp_b == 0 && b_comp_a == 1)
+    {
+        return (comp == _lt) || (comp == _lt_long) ? -1 : 1;
+    }
+    else
+    {
+        return COMPARE_ERR;
+    }
+}
+
+
+// caution: obj is a pointer to python tuple
 static PyObject *
 bstree_insert(BSTreeObject *self, PyObject *args)
 {
-    long key;
-    if (!PyArg_ParseTuple(args, "l", &key))
+    // fetch the first arg
+    if (!PyTuple_Check(args))
     {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
         return NULL;
     }
+    if (PyTuple_Size(args) != 1)
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
+        return NULL;
+    }
+    PyObject *obj = PyTuple_GetItem(args, 0);
+
+    // if the object is Nonetype, raise NotImplementedError
+    if (obj == Py_None)
+    {
+        PyErr_SetString(PyExc_NotImplementedError, "NoneType is not supported");
+        return NULL;
+    }
+
+    // validate the object
+    if (self->ope == NULL || self->ope == _lt_long)
+    {
+        if (PyLong_Check(obj))
+        {
+            self->ope = _lt_long;
+        }
+        else if (PyObject_HasAttrString(obj, "__lt__"))
+        {
+            self->ope = _lt;
+        }
+        else if (PyObject_HasAttrString(obj, "__gt__"))
+        {
+            self->ope = _gt;
+        }
+        else
+        {
+            PyErr_SetString(PyExc_TypeError, "Object must have __lt__() or __gt__() method");
+            return NULL;
+        }
+    }
+    else if (self->ope == _lt || self->ope == _gt)
+    {
+        // extract the string of self->compartor and check if obj has the method
+        PyObject *comp_name = (self->ope == _lt) ? 
+            PyUnicode_InternFromString("__lt__") : 
+            PyUnicode_InternFromString("__gt__");
+        if (!PyObject_HasAttr(obj, comp_name))
+        {
+            // specify the method in the error message
+            PyErr_SetString(PyExc_TypeError, "Object must have __lt__() or __gt__() method");
+            return NULL;
+        }
+    }
     // create a node first
-    RBNode *nodep = _create_node(key);
+    RBNode *nodep = _create_node(obj, INC_REF);
 
     RBNode *yp = RBTNIL;
     RBNode *xp = self->root;
     while (xp != RBTNIL)
     {
         yp = xp;
-        if (self->comparator(nodep->key, xp->key, (void *)NULL) > 0)
+        int comp_with_x;
+        if ((comp_with_x = _compare(nodep, xp, self->ope)) == COMPARE_ERR)
+        {
+            _delete_node(nodep, DEC_REF);
+            PyErr_SetString(PyExc_TypeError, "Comparison Error");
+            return NULL;
+        }
+        if (comp_with_x > 0)
+        {
             xp = xp->left;
-        else if (self->comparator(nodep->key, xp->key, (void *)NULL) < 0)
+        }
+        else if (comp_with_x < 0)
+        {
             xp = xp->right;
-        // if (nodep->key < xp->key)
-        //     xp = xp->left;
-        // else if (nodep->key > xp->key)
-        //     xp = xp->right;
-
+        }
         // if the node already exists, just increase the node count and
         // the whole tree size, only when dup is true.
         else
@@ -149,19 +302,24 @@ bstree_insert(BSTreeObject *self, PyObject *args)
             _increment_fixup(&(xp->count), self->is_dup);
             _increment_fixup(&(self->size), self->is_dup);
             _update_size(self, xp);
-            free(nodep);
+            _delete_node(nodep, DEC_REF);
             Py_RETURN_NONE;
         }
     }
     // if the node doesn't exist, just increase the whole tree size.
     self->size += 1;
     nodep->parent = yp;
+    int comp_with_y;
     if (yp == RBTNIL)
         self->root = nodep;
-    else if (self->comparator(nodep->key, yp->key, (void *)NULL) > 0)
+    else if ((comp_with_y = _compare(nodep, yp, self->ope)) == COMPARE_ERR)
+    {
+        _delete_node(nodep, DEC_REF);
+        PyErr_SetString(PyExc_TypeError, "Comparison Error");
+        return NULL;
+    }
+    else if (comp_with_y > 0)
         yp->left = nodep;
-    // else if (nodep->key < yp->key)
-    //     yp->left = nodep;
     else
         yp->right = nodep;
     _update_size(self, nodep);
@@ -170,18 +328,31 @@ bstree_insert(BSTreeObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+// caution: obj is a pointer to python tuple
 static PyObject *
 bstree_delete(BSTreeObject *self, PyObject *args)
 {
-    long key;
     RBNode *nodep;
 
-    if (!PyArg_ParseTuple(args, "l", &key))
+    // fetch the first arg
+    if (!PyTuple_Check(args))
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
         return NULL;
-
-    if ((nodep = _search(self->root, self->comparator, key)) == RBTNIL)
+    }
+    // if len(args) != 1 type error
+    if (PyTuple_Size(args) != 1)
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
         return NULL;
+    }
+    PyObject *obj = PyTuple_GetItem(args, 0);
 
+    if ((nodep = _search(self->root, self->ope, obj)) == RBTNIL)
+    {
+        PyErr_SetString(PyExc_ValueError, "Value not found in the tree");
+        return NULL;
+    }
     self->size -= 1;
 
     RBNode *yp = nodep;
@@ -241,40 +412,77 @@ bstree_delete(BSTreeObject *self, PyObject *args)
     }
     if (y_original_color == BLACK)
         _delete_fixup(self, xp);
-    free(nodep);
+    _delete_node(nodep, DEC_REF);
     Py_RETURN_NONE;
 }
 
+// caution: obj is a pointer to python tuple
 static PyObject *
-bstree_search(BSTreeObject *self, PyObject *args)
+bstree_has(BSTreeObject *self, PyObject *args)
 {
-    long key;
-    if (!PyArg_ParseTuple(args, "l", &key))
+    // fetch the first arg
+    if (!PyTuple_Check(args))
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
         return NULL;
+    }
+    if (PyTuple_Size(args) != 1)
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
+        return NULL;
+    }
+    PyObject *obj = PyTuple_GetItem(args, 0);
 
-    if (_search(self->root, self->comparator, key) == RBTNIL)
+    if (_search(self->root, self->ope, obj) == RBTNIL)
         return Py_False;
     else
         return Py_True;
 }
 
-// return a list in ascending order
+// return a list of objects in ascending order
 static PyObject *
-bstree_list(BSTreeObject *self, PyObject *args)
+bstree_list(BSTreeObject *self, PyObject *args, PyObject *kwargs)
 {
+    PyObject *rev_obj = NULL;
+    static char *kwlists[] = {"reverse", NULL};
+    int is_reverse = 0;
+
+    // the number of arguments are 0 or 1、keyarg is "reverse" only
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|O", kwlists, &rev_obj))
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
+        return NULL;
+    }
+    if (rev_obj != NULL)
+    {
+        if (!PyBool_Check(rev_obj))
+        {
+            PyErr_SetString(PyExc_TypeError, "Argument must be a boolean value");
+            return NULL;
+        }
+        if (rev_obj == Py_True)
+        {
+            is_reverse = 1;
+        }
+    }
+
     PyObject *list;
-    int idx;
-    idx = 0;
+    int idx = 0;
     list = PyList_New(self->size);
     RBNode *node = self->root;
-    return _list_in_order(node, list, &idx);
+    return _list_in_order(node, list, &idx, is_reverse);
 }
 
-
-// return a sizelist in ascending order
+// return the list in whcih each element is the size of object which is in ascending order
+// if dup is false, every size of object should be 1
 static PyObject *
 bstree_sizelist(BSTreeObject *self, PyObject *args)
 {
+    if (PyTuple_Size(args) != 0)
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
+        return NULL;
+    }
     PyObject *list;
     int idx;
     idx = 0;
@@ -284,21 +492,49 @@ bstree_sizelist(BSTreeObject *self, PyObject *args)
 }
 
 static PyObject *
+bstree_counter(BSTreeObject *self, PyObject *args)
+{
+    if (PyTuple_Size(args) != 0)
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
+        return NULL;
+    }
+    PyObject *dict;
+    int idx;
+    idx = 0;
+    dict = PyDict_New();
+    RBNode *node = self->root;
+    if (node == RBTNIL)
+        return dict;
+    return _get_counter(node, dict);
+}
+
+static PyObject *
 bstree_min(BSTreeObject *self, PyObject *args)
 {
+    if (PyTuple_Size(args) != 1)
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
+        return NULL;
+    }
     RBNode *nodep = _get_min(self->root);
     if (nodep == RBTNIL)
         return NULL;
-    return Py_BuildValue("l", nodep->key);
+    return Py_BuildValue("O", nodep->key);
 }
 
 static PyObject *
 bstree_max(BSTreeObject *self, PyObject *args)
 {
+    if (PyTuple_Size(args) != 1)
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
+        return NULL;
+    }
     RBNode *nodep = _get_max(self->root);
     if (nodep == RBTNIL)
         return NULL;
-    return Py_BuildValue("l", nodep->key);
+    return Py_BuildValue("O", nodep->key);
 }
 
 static PyObject *
@@ -306,15 +542,15 @@ bstree_kth_smallest(BSTreeObject *self, PyObject *args)
 {
     unsigned long k;
     int ret;
-    long ans;
+    PyObject *ans = NULL;
     if (!PyArg_ParseTuple(args, "|k", &k))
         return NULL;
     if (PyTuple_Size(args) == 0)
         k = 1;
-    ret = _helper_smallest(self->root, k, &ans);
+    ret = _helper_smallest(self->root, k, &ans);  // pointer to ans
     if (ret == -1)
         return NULL;
-    return Py_BuildValue("l", ans);
+    return Py_BuildValue("O", ans);
 }
 
 static PyObject *
@@ -322,7 +558,7 @@ bstree_kth_largest(BSTreeObject *self, PyObject *args)
 {
     unsigned long k;
     int ret;
-    long ans;
+    PyObject *ans = NULL;
     if (!PyArg_ParseTuple(args, "|k", &k))
         return NULL;
     if (PyTuple_Size(args) == 0)
@@ -330,32 +566,57 @@ bstree_kth_largest(BSTreeObject *self, PyObject *args)
     ret = _helper_largest(self->root, k, &ans);
     if (ret == -1)
         return NULL;
-    return Py_BuildValue("l", ans);
+    return Py_BuildValue("O", ans);
 }
 
+/// equivalent to (sort(); bisect_left();)
 static PyObject *
 bstree_rank(BSTreeObject *self, PyObject *args)
 {
-    long key;
-    if (!PyArg_ParseTuple(args, "l", &key))
+    // fetch the first arg
+    if (!PyTuple_Check(args))
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
         return NULL;
+    }
+    if (PyTuple_Size(args) != 1)
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
+        return NULL;
+    }
+    PyObject *obj = PyTuple_GetItem(args, 0);
+    RBNode *targetp = _create_node(obj, KEEP_REF);
 
-    return Py_BuildValue("k", _get_rank(self->root, self->comparator, key));
+    return Py_BuildValue("k", _get_rank(targetp, self->root, self->ope));
 }
 
 static PyObject *
-_list_in_order(RBNode *node, PyObject *list, int *pidx)
+_list_in_order(RBNode *node, PyObject *list, int *pidx, int is_reverse)
 {
-    if (node->left != RBTNIL)
-        list = _list_in_order(node->left, list, pidx);
+    if (is_reverse == 0)
+    {
+        if (node->left != RBTNIL)
+            list = _list_in_order(node->left, list, pidx, is_reverse);
 
-    for (int i = 0; i < node->count; i++)
-        PyList_SET_ITEM(list, *pidx + i, PyLong_FromLong(node->key));
-    *pidx += node->count;
+        for (int i = 0; i < node->count; i++)
+            PyList_SET_ITEM(list, *pidx + i, Py_BuildValue("O", node->key));
+        *pidx += node->count;
 
-    if (node->right != RBTNIL)
-        list = _list_in_order(node->right, list, pidx);
+        if (node->right != RBTNIL)
+            list = _list_in_order(node->right, list, pidx, is_reverse);
+    }
+    else
+    {
+        if (node->right != RBTNIL)
+            list = _list_in_order(node->right, list, pidx, is_reverse);
 
+        for (int i = 0; i < node->count; i++)
+            PyList_SET_ITEM(list, *pidx + i, Py_BuildValue("O", node->key));
+        *pidx += node->count;
+
+        if (node->left != RBTNIL)
+            list = _list_in_order(node->left, list, pidx, is_reverse);
+    }
     return list;
 }
 
@@ -366,7 +627,7 @@ _sizelist_in_order(RBNode *node, PyObject *list, int *pidx)
         list = _sizelist_in_order(node->left, list, pidx);
 
     for (int i = 0; i < node->count; i++)
-        PyList_SET_ITEM(list, *pidx + i, PyLong_FromLong(node->size));
+        PyList_SET_ITEM(list, *pidx + i, Py_BuildValue("k", node->count));
     *pidx += node->count;
 
     if (node->right != RBTNIL)
@@ -375,6 +636,25 @@ _sizelist_in_order(RBNode *node, PyObject *list, int *pidx)
     return list;
 }
 
+static PyObject *
+_get_counter(RBNode *node, PyObject *dict)
+{
+    if (node->left != RBTNIL)
+        dict = _get_counter(node->left, dict);
+
+    // check if node->key is hashable
+    if (!PyObject_HasAttrString(node->key, "__hash__"))
+    {
+        // if not hashable, raise an error
+        PyErr_SetString(PyExc_TypeError, "node->key is not hashable");
+        return NULL;
+    }
+    PyDict_SetItem(dict, Py_BuildValue("O", node->key), Py_BuildValue("k", node->count));
+
+    if (node->right != RBTNIL)
+        dict = _get_counter(node->right, dict);
+    return dict;
+}
 
 // [TODO] take care of overflow
 void _increment_fixup(unsigned long *x, enum IsDup d)
@@ -383,7 +663,7 @@ void _increment_fixup(unsigned long *x, enum IsDup d)
         *x += 1;
 }
 
-int _helper_smallest(RBNode *node, unsigned long k, long *ans)
+int _helper_smallest(RBNode *node, unsigned long k, PyObject **ans)
 {
     if (k > node->size)
     {
@@ -391,19 +671,21 @@ int _helper_smallest(RBNode *node, unsigned long k, long *ans)
         return -1;
     }
     if (node == RBTNIL)
+    {
         return 0;
+    }
     if (k <= node->left->size)
         return _helper_smallest(node->left, k, ans);
     else if (node->left->size < k && k <= node->left->size + node->count)
     {
-        *ans = node->key;
+        *ans = node->key;  // update ans
         return 0;
     }
     else
         return _helper_smallest(node->right, k - node->left->size - node->count, ans);
 }
 
-int _helper_largest(RBNode *node, unsigned long k, long *ans)
+int _helper_largest(RBNode *node, unsigned long k, PyObject **ans)
 {
     if (k > node->size)
     {
@@ -423,68 +705,93 @@ int _helper_largest(RBNode *node, unsigned long k, long *ans)
         return _helper_largest(node->left, k - node->right->size - node->count, ans);
 }
 
-unsigned long _get_rank(RBNode *node, RBTComparator comp, long key)
+unsigned long _get_rank(RBNode *target, RBNode *node, CompareOperator ope)
 {
     if (node == RBTNIL)
+    {
         return 0;
-    // if (key < node->key)
-    if (comp(key, node->key, (void *)NULL) > 0)
-        return _get_rank(node->left, comp, key);
-    // else if (key > node->key)
-    else if (comp(key, node->key, (void *)NULL) < 0)
-        return node->left->size + node->count + _get_rank(node->right, comp, key);
+    }
+    int comp_with_x;
+    if ((comp_with_x = _compare(target, node, ope)) == COMPARE_ERR)
+    {
+        PyErr_SetString(PyExc_TypeError, "Comparison Error");
+        // [TODO] should not return NULL
+        return NULL;
+    }
+    if (comp_with_x > 0)
+    {
+        return _get_rank(target, node->left, ope);
+    }
+    else if (comp_with_x < 0)
+    {
+        return node->left->size + node->count + _get_rank(target, node->right, ope);
+    }
     else
+    {
         return node->left->size;
+    }
 }
 
 // from target node to root node, update the size
 // src must not be RBTNIL
 /// @brief update all nodes size when target node is deleted
-/// @param self 
-/// @param src 
+/// @param self
+/// @param src
 void _update_size(BSTreeObject *self, RBNode *src)
 {
     RBNode *nodep = src;
     while (nodep != RBTNIL)
     {
-        nodep->size = nodep-> count + nodep->left->size + nodep->right->size;
+        nodep->size = nodep->count + nodep->left->size + nodep->right->size;
         nodep = nodep->parent;
     }
 }
 
-
-// get the node which key is k, when nodep is a root
+// get the node which key is obj, when nodep is a root
 // If not exist, get RBTNIL.
-RBNode *_search(RBNode *nodep, RBTComparator comp, long k)
+RBNode *_search(RBNode *nodep, CompareOperator ope, PyObject *obj)
 {
     RBNode *zp = nodep;
-    // while (zp != RBTNIL && k != zp->key)
-    while (zp != RBTNIL && comp(k, zp->key, (void *)NULL) != 0)
+    RBNode *kp = _create_node(obj, KEEP_REF);
+    int comp_ret;
+    while (zp != RBTNIL && (comp_ret = _compare(kp, zp, ope)) != 0)
     {
-        // if (k < zp->key)
-        if (comp(k, zp->key, (void *)NULL) > 0)
+        if (comp_ret == COMPARE_ERR)
+        {
+            PyErr_SetString(PyExc_TypeError, "Comparison Error");
+            return NULL;
+        }
+        if (comp_ret > 0)
+        {
             zp = zp->left;
+        }
         else
+        {
             zp = zp->right;
+        }
     }
     return zp;
 }
 
 // get the node which key is k.
 // If not exist, get RBTNIL.
-RBNode *_search_fixup(RBNode *nodep, RBTComparator comp, long k)
+RBNode *_search_fixup(RBNode *nodep, CompareOperator ope, PyObject *k)
 {
     RBNode *zp = nodep;
     if (zp == RBTNIL)
         return RBTNIL;
-    // while (k != zp->key)
-    while (comp(k, zp->key, (void *)NULL) != 0)
+    RBNode *kp = _create_node(k, KEEP_REF);
+    int comp_ret;
+    while ((comp_ret = _compare(kp, zp, ope)) != 0)
     {
-        // if (k < zp->key && zp->left != RBTNIL)
-        if (comp(k, zp->key, (void *)NULL) > 0 && zp->left != RBTNIL)
+        if (comp_ret == COMPARE_ERR)
+        {
+            PyErr_SetString(PyExc_TypeError, "Comparison Error");
+            return NULL;
+        }
+        if (comp_ret > 0 && zp->left != RBTNIL)
             zp = zp->left;
-        // else if (k > zp->key && zp->right != RBTNIL)
-        else if (comp(k, zp->key, (void *)NULL) < 0 && zp->right != RBTNIL)
+        else if (comp_ret < 0 && zp->right != RBTNIL)
             zp = zp->right;
         else
             break;
@@ -492,18 +799,28 @@ RBNode *_search_fixup(RBNode *nodep, RBTComparator comp, long k)
     return zp;
 }
 
-RBNode *_create_node(long key)
+// key is an object which has > or < operator
+RBNode *_create_node(PyObject *obj, int inc_ref)
 {
     RBNode *nodep = malloc(sizeof(RBNode));
     if (nodep == NULL)
         return NULL;
-    nodep->key = key;
+    nodep->key = obj;
     nodep->size = 1;
     nodep->count = 1;
     nodep->parent = RBTNIL;
     nodep->left = RBTNIL;
     nodep->right = RBTNIL;
+    if (inc_ref)
+        Py_INCREF(obj);
     return nodep;
+}
+
+void _delete_node(RBNode *nodep, int dec_ref)
+{
+    if (dec_ref)
+        Py_DECREF(nodep->key);
+    free(nodep);
 }
 
 // get the min value of the tree which root is nodep
@@ -524,61 +841,87 @@ RBNode *_get_max(RBNode *nodep)
     return zp;
 }
 
-/// @brief get the key of the next node. 
+/// @brief get the key of the next node.
 /// doesn't matter if the arg key is in the tree or not.
-/// @param self 
-/// @param args arg key
-/// @return 
+/// @param self
+/// @param obj pointer to python tuple
+/// @return
 static PyObject *
 bstree_next(BSTreeObject *self, PyObject *args)
 {
-    long k;
-    if (!PyArg_ParseTuple(args, "l", &k))
+    // fetch the first arg
+    if (!PyTuple_Check(args))
     {
         PyErr_SetString(PyExc_TypeError, "Argument Invalid");
         return NULL;
     }
-    RBNode *nodep = _search_fixup(self->root, self->comparator, k);
+    if (PyTuple_Size(args) != 1)
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
+        return NULL;
+    }
+    PyObject *obj = PyTuple_GetItem(args, 0);
+
+    RBNode *nodep = _search_fixup(self->root, self->ope, obj);
+    RBNode *kp = _create_node(obj, KEEP_REF);
+    int comp_ret;
     if (nodep == RBTNIL)
         Py_RETURN_NONE;
-    // else if (nodep->key > k)
-    else if (self->comparator(nodep->key, k, (void *)NULL) < 0)
-        return Py_BuildValue("l", nodep->key);
+    else if ((comp_ret = _compare(nodep, kp, self->ope)) == COMPARE_ERR)
+    {
+        PyErr_SetString(PyExc_TypeError, "Comparison Error");
+        return NULL;
+    }
+    else if (comp_ret < 0)
+        return Py_BuildValue("O", nodep->key);
     else
     {
         RBNode *nextp = _get_next(nodep);
         if (nextp != RBTNIL)
-            return Py_BuildValue("l", _get_next(nodep)->key);
+            return Py_BuildValue("O", _get_next(nodep)->key);
         else
             Py_RETURN_NONE;
     }
 }
 
-/// @brief get the key of the previous node. 
+/// @brief get the key of the previous node.
 /// doesn't matter if the arg key is in the tree or not.
-/// @param self 
-/// @param args arg key
-/// @return 
+/// @param self
+/// @param obj pointer to python tuple
+/// @return
 static PyObject *
 bstree_prev(BSTreeObject *self, PyObject *args)
 {
-    long k;
-    if (!PyArg_ParseTuple(args, "l", &k))
+    // fetch the first arg
+    if (!PyTuple_Check(args))
     {
         PyErr_SetString(PyExc_TypeError, "Argument Invalid");
         return NULL;
     }
-    RBNode *nodep = _search_fixup(self->root, self->comparator, k);
+    if (PyTuple_Size(args) != 1)
+    {
+        PyErr_SetString(PyExc_TypeError, "Argument Invalid");
+        return NULL;
+    }
+    PyObject *obj = PyTuple_GetItem(args, 0);
+
+    RBNode *nodep = _search_fixup(self->root, self->ope, obj);
+    RBNode *kp = _create_node(obj, KEEP_REF);
+    int comp_ret;
     if (nodep == RBTNIL)
         Py_RETURN_NONE;
-    // else if (nodep->key < k)
-    else if (self->comparator(nodep->key, k, (void *)NULL) > 0)
-        return Py_BuildValue("l", nodep->key);
+    else if ((comp_ret = _compare(nodep, kp, self->ope)) == COMPARE_ERR)
+    {
+        PyErr_SetString(PyExc_TypeError, "Comparison Error");
+        return NULL;
+    }
+    else if (comp_ret > 0)
+        return Py_BuildValue("O", nodep->key);
     else
     {
         RBNode *nextp = _get_prev(nodep);
         if (nextp != RBTNIL)
-            return Py_BuildValue("l", _get_prev(nodep)->key);
+            return Py_BuildValue("O", _get_prev(nodep)->key);
         else
             Py_RETURN_NONE;
     }
@@ -818,18 +1161,19 @@ static PyMemberDef bstree_class_members[] =
 
 static PyMethodDef bstree_class_methods[] =
     {
-        {"insert", (PyCFunction)bstree_insert, METH_VARARGS, "insert an integer"},
-        {"delete", (PyCFunction)bstree_delete, METH_VARARGS, "delete an integer"},
-        {"search", (PyCFunction)bstree_search, METH_VARARGS, "search an integer"},
-        {"to_list", (PyCFunction)bstree_list, METH_VARARGS, "list in order"},
-        {"to_sizelist", (PyCFunction)bstree_sizelist, METH_VARARGS, "list in order"},
-        {"next_to", (PyCFunction)bstree_next, METH_VARARGS, "get a next value"},
-        {"prev_to", (PyCFunction)bstree_prev, METH_VARARGS, "get a prev value"},
-        {"min", (PyCFunction)bstree_min, METH_NOARGS, "get a minimum value"},
-        {"max", (PyCFunction)bstree_max, METH_NOARGS, "get a maximum value"},
-        {"kth_smallest", (PyCFunction)bstree_kth_smallest, METH_VARARGS, "get a kth smallest value"},
-        {"kth_largest", (PyCFunction)bstree_kth_largest, METH_VARARGS, "get a kth largest value"},
-        {"rank", (PyCFunction)bstree_rank, METH_VARARGS, "get a rank of parameter"},
+        {"insert", (PyCFunction)bstree_insert, METH_VARARGS, "insert an object"},
+        {"delete", (PyCFunction)bstree_delete, METH_VARARGS, "delete an object"},
+        {"has", (PyCFunction)bstree_has, METH_VARARGS, "check if the object is in the tree"},
+        {"to_list", (PyCFunction)bstree_list, METH_VARARGS | METH_KEYWORDS, "list object in order"},
+        {"to_sizelist", (PyCFunction)bstree_sizelist, METH_VARARGS, "sizelist object in order"},
+        {"to_counter", (PyCFunction)bstree_counter, METH_VARARGS, "counter of objects"},
+        {"next_to", (PyCFunction)bstree_next, METH_VARARGS, "get the next value"},
+        {"prev_to", (PyCFunction)bstree_prev, METH_VARARGS, "get the prev value"},
+        {"min", (PyCFunction)bstree_min, METH_NOARGS, "get the minimum value in the tree"},
+        {"max", (PyCFunction)bstree_max, METH_NOARGS, "get the maximum value in the tree"},
+        {"kth_smallest", (PyCFunction)bstree_kth_smallest, METH_VARARGS, "get the kth smallest value"},
+        {"kth_largest", (PyCFunction)bstree_kth_largest, METH_VARARGS, "get the kth largest value"},
+        {"rank", (PyCFunction)bstree_rank, METH_VARARGS, "get the rank of parameter"},
         {0, NULL}};
 
 static PyType_Slot bstreeType_slots[] =

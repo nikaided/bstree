@@ -6,5 +6,7 @@ dist/*
 *.exe
 *.gch
 *.html
+*.pyd
+.devenv
 
 data
