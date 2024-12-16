@@ -99,7 +99,6 @@ class Algorithm:
 
     def bstree(self, zero, L, C, X, data_type):
         tree = BSTree()
-        print("zero:", zero, type(zero))
         tree.insert(zero)
         tree.insert(L)
         ans = list()

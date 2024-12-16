@@ -1,5 +1,4 @@
 backports.tarfile==1.2.0
-bstree==0.5
 certifi==2024.8.30
 charset-normalizer==3.4.0
 click==8.1.7

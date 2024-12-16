@@ -53,6 +53,37 @@ class TestRBTreeInit:
             tree = BSTree(0.1)
 
 
+class TestRBTreeClear:
+
+    def test_size_when_clear_intObj(self):
+        tree = BSTree()
+        for i in range(10**3):
+            tree.insert(i)
+        tree.clear()
+        assert tree.size == 0
+
+    def test_size_when_clear_floatObj(self):
+        tree = BSTree()
+        for i in range(1):
+            tree.insert(float(i))
+        tree.clear()
+        assert tree.size == 0
+
+    def test_size_when_clear_LTObj(self):
+        tree = BSTree()
+        for i in range(10**3):
+            tree.insert(LTObj(i))
+        tree.clear()
+        assert tree.size == 0
+
+    def test_size_clear_datetimeObj(self):
+        tree = BSTree()
+        for i in range(10**3):
+            tree.insert(datetime.now())
+        tree.clear()
+        assert tree.size == 0
+
+
 class TestRBTreeInsert:
     def test_size_when_insert_random_value(self):
         for i in range(100):
@@ -66,6 +97,7 @@ class TestRBTreeInsert:
         for i in range(100):
             tree = BSTree(dup=True)
             insert_list = [randint(-pow(2, 7), pow(2, 7)) for i in range(100)]
+            counter = {}
             for val in insert_list:
                 tree.insert(val)
             assert tree.size == len(insert_list)
@@ -94,8 +126,13 @@ class TestRBTreeInsert:
             assert tree.to_counter() == counter
 
     def test_counter_when_any_unhashable_in_tree(self):
-        # [TODO]
-        raise NotImplementedError()
+        # [TODO investigate why this test is failing]
+        with pytest.raises(TypeError):
+            tree = BSTree()
+            n = randint(1, 100)
+            for j in range(n):
+                tree.insert(LTObj(j))
+            tree.to_counter()
 
     def test_size_when_insert_same_value(self):
         tree = BSTree()
@@ -116,12 +153,13 @@ class TestRBTreeInsert:
         tree.insert(sys.maxsize)
         assert True
 
+
 class TestRBTreeToList:
     def test_type_error_when_arguments(self):
         with pytest.raises(TypeError):
             tree = BSTree()
             tree.to_list(0)
-    
+
     def test_tolist_when_tree_is_empty(self):
         tree = BSTree()
         tree.to_list()
@@ -203,7 +241,7 @@ class TestRBTreeToList:
                 tree.insert(val)
                 test_set.add(val)
             while test_set:
-                element = sample(test_set, 1)[0]
+                element = sample(list(test_set), 1)[0]
                 tree.delete(element)
                 test_set.remove(element)
                 assert tree.to_list() == sorted(test_set)
@@ -218,7 +256,7 @@ class TestRBTreeToList:
                 tree.insert(val)
                 test_set.add(val)
             while test_set:
-                element = sample(test_set, 1)[0]
+                element = sample(list(test_set), 1)[0]
                 tree.delete(element)
                 test_set.remove(element)
                 assert tree.to_list(reverse=True) == sorted(test_set, reverse=True)
@@ -231,7 +269,7 @@ class TestRBTreeToList:
             insert_list = [randint(-pow(2, 4), pow(2, 4)) for i in range(m)]
             for val in insert_list:
                 tree.insert(val)
-                test_list.append(val)   
+                test_list.append(val)
             while test_list:
                 element = sample(test_list, 1)[0]
                 tree.delete(element)
@@ -246,7 +284,7 @@ class TestRBTreeToList:
             insert_list = [randint(-pow(2, 4), pow(2, 4)) for i in range(m)]
             for val in insert_list:
                 tree.insert(val)
-                test_list.append(val)   
+                test_list.append(val)
             while test_list:
                 element = sample(test_list, 1)[0]
                 tree.delete(element)
@@ -338,9 +376,9 @@ class TestRBTreeDelete:
             insert_list = [randint(-pow(2, 4), pow(2, 4)) for i in range(m)]
             for val in insert_list:
                 tree.insert(val)
-                test_set.add(val)  
+                test_set.add(val)
             while test_set:
-                element = sample(test_set, 1)[0]
+                element = sample(list(test_set), 1)[0]
                 tree.delete(element)
                 test_set.remove(element)
                 assert tree.size == len(test_set)
@@ -354,9 +392,9 @@ class TestRBTreeDelete:
             for val in insert_list:
                 tree.insert(val)
                 test_set.add(val)
-            
+
             while test_set:
-                element = sample(test_set, 1)[0]
+                element = sample(list(test_set), 1)[0]
                 tree.delete(element)
                 test_set.remove(element)
                 assert tree.to_counter() == dict(Counter(test_set))
@@ -369,7 +407,7 @@ class TestRBTreeDelete:
             insert_list = [randint(-pow(2, 4), pow(2, 4)) for i in range(m)]
             for val in insert_list:
                 tree.insert(val)
-                test_list.append(val)   
+                test_list.append(val)
             while test_list:
                 element = sample(test_list, 1)[0]
                 tree.delete(element)
@@ -384,7 +422,7 @@ class TestRBTreeDelete:
             insert_list = [randint(-pow(2, 4), pow(2, 4)) for i in range(m)]
             for val in insert_list:
                 tree.insert(val)
-                test_list.append(val)    
+                test_list.append(val)
             while test_list:
                 element = sample(test_list, 1)[0]
                 tree.delete(element)
@@ -453,6 +491,7 @@ class TestRBTreeNextPrev:
         tree.insert(2)
         assert tree.next_to(3) is None
 
+
 class TestRBTreePrev:
     def test_type_error_when_no_arguments(self):
         with pytest.raises(TypeError):
@@ -514,6 +553,7 @@ class TestRBTreePrev:
         tree.insert(2)
         assert tree.prev_to(-1) is None
 
+
 class TestRBTreeKthSmallest:
     def test_type_error_when_two_arguments(self):
         with pytest.raises(TypeError):
@@ -572,7 +612,7 @@ class TestRBTreeKthSmallest:
                 test_list = sorted(test_set)
                 k = randint(1, len(test_list))
                 assert tree.kth_smallest(k) == test_list[k - 1]
-                element = sample(test_set, 1)[0]
+                element = sample(list(test_set), 1)[0]
                 tree.delete(element)
                 test_set.remove(element)
 
@@ -596,6 +636,7 @@ class TestRBTreeKthSmallest:
         tree = BSTree()
         with pytest.raises(IndexError):
             tree.kth_smallest()
+
 
 class TestRBTreeKthLargest:
     def test_type_error_when_two_arguments(self):
@@ -655,7 +696,7 @@ class TestRBTreeKthLargest:
                 test_list = sorted(test_set, reverse=True)
                 k = randint(1, len(test_list))
                 assert tree.kth_largest(k) == test_list[k - 1]
-                element = sample(test_set, 1)[0]
+                element = sample(list(test_set), 1)[0]
                 tree.delete(element)
                 test_set.remove(element)
 
@@ -747,7 +788,7 @@ class TestRBTreeRank:
                 tree.insert(val)
                 test_set.add(val)
             while test_set:
-                element = sample(test_set, 1)[0]
+                element = sample(list(test_set), 1)[0]
                 tree.delete(element)
                 test_set.remove(element)
 

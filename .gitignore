@@ -7,6 +7,6 @@ dist/*
 *.gch
 *.html
 *.pyd
-.devenv
+.devenv*
 
 data

@@ -1,17 +1,32 @@
 from datetime import datetime
+from sys import getrefcount
 import pytest
 
 from bstree import BSTree
 from mock_object import NoCmpObj, LTObj, GTObj, LTGTObj
 
+# class TestArgumentDataNumberError:    
+#     def test_when_insert_more_than_unsigned_long_times(self):
+#         with pytest.raises(TypeError):
+#             tree = BSTree()
+#             for i in range(2**64):
+#                 tree.insert(10)
 
+class TestRefCount:
+    def test_getrefcount(self):
+        tree = BSTree()
+        assert getrefcount(LTObj(10)) == 2
+        # val = LTObj(10)
+        # tree.insert(val)
+        
+        # assert getrefcount(val) == 2
 class TestArgumentDataType:
-    def test_type_error_when_no_arguments(self):
+    def test_when_insert_no_argument(self):
         with pytest.raises(TypeError):
             tree = BSTree()
             tree.insert()
 
-    def test_type_error_when_two_arguments(self):
+    def test_when_insert_two_arguments(self):
         with pytest.raises(TypeError):
             tree = BSTree()
             tree.insert(0, 1)

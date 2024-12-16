@@ -34,11 +34,6 @@ Returns a list of objects in the tree, ordered in ascending value.
 - `reverse` (`bool`, optional): If `True`, the list will be returned in descending order. If `False` (default), the list will be in ascending order.
 
 ---
-#### `to_sizelist()`
-
-Returns a list of objects with their sizes in order.
-
----
 #### `to_counter()`
 
 Returns a counter of the objects in the tree.
@@ -90,3 +85,8 @@ Returns the rank of the given object in the tree (its position in order).
 
 **Explanation:** The rank of an object is the number of elements in the tree that are strictly less than the given object.  
  This is equivalent to the behavior of `bisect_left()` in Python's `bisect` module, which returns the position where the object would fit in a sorted list while maintaining the order.
+
+ ---
+ #### `clear()`
+
+ Clear the tree while preserving the duplicate setting.
