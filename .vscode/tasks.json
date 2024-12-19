@@ -1,0 +1,56 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build and install",
+      "type": "shell",
+      "command": "python",
+      "args": ["-m", "pip", "install", "."],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "test interface",
+      "type": "shell",
+      "command": "./.devenv3-12/Scripts/python.exe",
+      "args": ["-m", "pytest", "--import-mode=importlib", "tests/interface/"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "test implement",
+      "type": "shell",
+      "command": "./.devenv3-12/Scripts/python.exe",
+      "args": ["-m", "pytest", "--import-mode=importlib", "tests/implement/"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "test performance",
+      "type": "shell",
+      "command": "./.devenv3-12/Scripts/python.exe",
+      "args": ["-m", "pytest", "--import-mode=importlib", "tests/performance/"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+  ]
+}

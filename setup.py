@@ -3,7 +3,7 @@ from setuptools import *
 extensions = [Extension("bstree", sources=["bstree.c"])]
 setup(
     name="bstree",
-    version="0.6",
+    version="0.7",
     description="Binary search tree",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",

@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        ".fantomasignore": "ignore",
+        "format": "c",
+        "initializer_list": "c",
+        "random": "c",
+        "utility": "c",
+        "vector": "c",
+        "xstring": "c",
+        "xutility": "c",
+        "stdlib.h": "c"
+    }
+}
