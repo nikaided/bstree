@@ -33,7 +33,7 @@ The library is flexible and supports a wide range of data types, including integ
 To install the BSTree library, simply run:
 
 ```shell
-pip install bstree
+pip install -U bstree
 ```
 
 Make sure you have Python 3.x installed and the `pip` tool is available in your environment.

@@ -1,4 +1,4 @@
-﻿#define PY_SSIZE_T_CLEAN
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include <structmember.h>
 
@@ -41,7 +41,7 @@ typedef struct rbnode
 } RBNode;
 
 // compare a with b and return -1, 0, 1
-typedef int (*CompareOperator)(const PyObject *, const PyObject *);
+typedef int (*CompareOperator)(PyObject *, PyObject *);
 
 // whether tree holds duplicated key or not
 // if so, node count will increase.
@@ -88,10 +88,10 @@ long _get_rank(PyObject *, RBNode *, CompareOperator);
 int _helper_smallest(RBNode *, unsigned long, PyObject **);
 int _helper_largest(RBNode *, unsigned long, PyObject **);
 
-int _lt_long(const PyObject *, const PyObject *);
-int _lt_double(const PyObject *, const PyObject *);
-int _lt_obj(const PyObject *, const PyObject *);
-int _compare(const PyObject *, const PyObject *, CompareOperator);
+int _lt_long(PyObject *, PyObject *);
+int _lt_double(PyObject *, PyObject *);
+int _lt_obj(PyObject *, PyObject *);
+int _compare(PyObject *, PyObject *, CompareOperator);
 int _can_be_handled_as_c_long(PyObject *);
 
 // every leaf is treated as the same node
@@ -153,7 +153,7 @@ bstree_clear(BSTreeObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-int _lt_long(const PyObject *a, const PyObject *b)
+int _lt_long(PyObject *a, PyObject *b)
 {
     long value_a = PyLong_AsLong(a);
     long value_b = PyLong_AsLong(b);
@@ -166,7 +166,7 @@ int _lt_long(const PyObject *a, const PyObject *b)
     return value_a < value_b ? 1 : 0;
 }
 
-int _lt_double(const PyObject *a, const PyObject *b)
+int _lt_double(PyObject *a, PyObject *b)
 {
     double value_a = PyFloat_AsDouble(a);
     double value_b = PyFloat_AsDouble(b);
@@ -190,7 +190,7 @@ int _lt_double(const PyObject *a, const PyObject *b)
 }
 
 // if a < b return 1, elif a >= b return 0, else return COMPARE_ERR.
-int _lt_obj(const PyObject *a, const PyObject *b)
+int _lt_obj(PyObject *a, PyObject *b)
 {
     PyObject *lt_name = PyUnicode_InternFromString("__lt__");
     PyObject *lt_result = PyObject_CallMethodObjArgs(a, lt_name, b, NULL);
@@ -228,7 +228,7 @@ int _lt_obj(const PyObject *a, const PyObject *b)
 }
 
 // if a < b return 1, elif a > b return -1, elif a == b return 0 else return COMPARE_ERR
-int _compare(const PyObject *a, const PyObject *b, CompareOperator comp)
+int _compare(PyObject *a, PyObject *b, CompareOperator comp)
 {
     int a_comp_b = comp(a, b);
     int b_comp_a = comp(b, a);
@@ -703,7 +703,7 @@ bstree_rank(BSTreeObject *self, PyObject *args)
     return Py_BuildValue("k", rank);
 }
 
-static PyObject *
+PyObject *
 _list_in_order(RBNode *node, PyObject *list, int *pidx, char is_reverse)
 {
     if (is_reverse == 0)
@@ -824,7 +824,7 @@ long _get_rank(PyObject *key, RBNode *nodep, CompareOperator ope)
     else if (comp_with_x < 0)
     {
         long rank = _get_rank(key, nodep->right, ope);
-        return rank < 0 ? rank : nodep->left->size + nodep->count + rank;
+        return rank < 0 ? rank : (long)(nodep->left->size + nodep->count + rank);
     }
     else
     {

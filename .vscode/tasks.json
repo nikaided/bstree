@@ -19,7 +19,7 @@
     {
       "label": "test interface",
       "type": "shell",
-      "command": "./.devenv3-12/Scripts/python.exe",
+      "command": "python",
       "args": ["-m", "pytest", "--import-mode=importlib", "tests/interface/"],
       "group": "test",
       "presentation": {
@@ -31,7 +31,7 @@
     {
       "label": "test implement",
       "type": "shell",
-      "command": "./.devenv3-12/Scripts/python.exe",
+      "command": "python",
       "args": ["-m", "pytest", "--import-mode=importlib", "tests/implement/"],
       "group": "test",
       "presentation": {
