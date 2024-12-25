@@ -127,18 +127,32 @@ class TestOutputError:
             tree = BSTree()
             tree.kth_largest()
 
-class TestOutputWithKey:
 
+class TestOutputWithKey:
+    # [TODO] min picks up the arbitrary object with min key.
+    # (actually it does not pick it arbitrarily but anyways it doesn't compare with values)  
     def test_min(self):
+        tree = BSTree(key=abs)
+        tree.insert(-1)
+        tree.insert(1)
+        assert tree.min() == -1
+
+    def test_min_2(self):
         tree = BSTree(key=abs)
         tree.insert(1)
         tree.insert(-1)
         assert tree.min() == -1
-    
+
     def test_max(self):
         tree = BSTree(key=abs)
         tree.insert(1)
         tree.insert(-1)
+        assert tree.max() == 1
+
+    def test_max_2(self):
+        tree = BSTree(key=abs)
+        tree.insert(-1)
+        tree.insert(1)
         assert tree.max() == 1
 
     def test_min_LTObj(self):

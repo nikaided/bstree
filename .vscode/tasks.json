@@ -43,7 +43,7 @@
     {
       "label": "test performance",
       "type": "shell",
-      "command": "./.devenv3-12/Scripts/python.exe",
+      "command": "python",
       "args": ["-m", "pytest", "--import-mode=importlib", "tests/performance/"],
       "group": "test",
       "presentation": {

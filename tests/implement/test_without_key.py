@@ -13,28 +13,28 @@ from tests.mock_object import LTObj
 
 class TestRBTreeClear:
 
-    def test_size_when_clear_intObj(self):
+    def test_size_when_clear_tree_of_intObj(self):
         tree = BSTree()
         for i in range(10**3):
             tree.insert(i)
         tree.clear()
         assert tree.size == 0
 
-    def test_size_when_clear_floatObj(self):
+    def test_size_when_clear_tree_of_floatObj(self):
         tree = BSTree()
         for i in range(1):
             tree.insert(float(i))
         tree.clear()
         assert tree.size == 0
 
-    def test_size_when_clear_LTObj(self):
+    def test_size_when_clear_tree_of_LTObj(self):
         tree = BSTree()
         for i in range(10**3):
             tree.insert(LTObj(i))
         tree.clear()
         assert tree.size == 0
 
-    def test_size_clear_datetimeObj(self):
+    def test_size_when_clear_tree_of_datetimeObj(self):
         tree = BSTree()
         for i in range(10**3):
             tree.insert(datetime.now())
@@ -111,46 +111,37 @@ class TestInsert:
 
 
 class TestHas:
-    def test_type_error_when_no_arguments(self):
-        with pytest.raises(TypeError):
-            tree = BSTree()
-            tree.has()
 
-    def test_type_error_when_two_arguments(self):
-        with pytest.raises(TypeError):
-            tree = BSTree()
-            tree.has(0, 1)
-
-    def test_search_inserted(self):
+    def test_search_what_is_inserted(self):
         tree = BSTree()
         tree.insert(0)
         assert tree.has(0)
 
-    def test_search_not_inserted(self):
+    def test_search_what_is_not_inserted(self):
         tree = BSTree()
         tree.insert(0)
         assert not tree.has(1)
 
-    def test_search_deleted(self):
+    def test_search_what_is_deleted(self):
         tree = BSTree()
         tree.insert(0)
         tree.delete(0)
         assert not tree.has(0)
 
-    def test_search_deleted_when_dup_is_true(self):
+    def test_search_what_is_deleted_when_dup_is_true(self):
         tree = BSTree(dup=True)
         tree.insert(0)
         tree.delete(0)
         assert not tree.has(0)
 
-    def test_search_deleted2(self):
+    def test_search_what_is_deleted_2(self):
         tree = BSTree()
         tree.insert(0)
         tree.insert(0)
         tree.delete(0)
         assert not tree.has(0)
 
-    def test_search_deleted_when_dup_is_true2(self):
+    def test_search_what_is_deleted_when_dup_is_true_2(self):
         tree = BSTree(True)
         tree.insert(0)
         tree.insert(0)
@@ -223,15 +214,6 @@ class TestDelete:
 
 
 class TestNextTo:
-    def test_type_error_when_no_arguments(self):
-        with pytest.raises(TypeError):
-            tree = BSTree()
-            tree.next_to()
-
-    def test_type_error_when_two_arguments(self):
-        with pytest.raises(TypeError):
-            tree = BSTree()
-            tree.next_to(0, 1)
 
     def test_get_next(self):
         for i in range(100):
@@ -288,15 +270,6 @@ class TestNextTo:
         assert tree.next_to(3) is None
 
 class TestPrevTo:
-    def test_type_error_when_no_arguments(self):
-        with pytest.raises(TypeError):
-            tree = BSTree()
-            tree.prev_to()
-
-    def test_type_error_when_two_arguments(self):
-        with pytest.raises(TypeError):
-            tree = BSTree()
-            tree.prev_to(0, 1)
 
     def test_get_prev(self):
         for i in range(100):

@@ -157,7 +157,7 @@ Returns an arbitrary object in the tree among those with the k-th largest key.
 Returns the rank of the given object in the tree (its position in order).
 
 **Explanation:** The rank of an object is the number of elements in the tree that are strictly less than the given object.  
- This is equivalent to the behavior of `bisect_left()` in Python's `bisect` module, which returns the position where the object would fit in a sorted list while maintaining the order.
+This is almost equivalent to `bisect_left()` in Python's `bisect` module, which returns the position where the object would fit in a sorted list while maintaining the order. The only difference is that our `bstree.rank` applies the key function to the object, whereas `bisect_left` does not.
 
 **Arguments:**
 

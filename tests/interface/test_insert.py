@@ -5,12 +5,13 @@ import pytest
 from bstree import BSTree
 from tests.mock_object import NoCmpObj, LTObj, GTObj, LTGTObj
 
-# class TestArgumentDataNumberError:    
+# class TestArgumentDataNumberError:
 #     def test_when_insert_more_than_unsigned_long_times(self):
 #         with pytest.raises(TypeError):
 #             tree = BSTree()
 #             for i in range(2**64):
 #                 tree.insert(10)
+
 
 class TestRefCount:
     def test_getrefcount(self):
@@ -18,7 +19,7 @@ class TestRefCount:
         assert getrefcount(LTObj(10)) == 2
         # val = LTObj(10)
         # tree.insert(val)
-        
+
         # assert getrefcount(val) == 2
 
 
@@ -55,7 +56,7 @@ class TestInputDataType:
     def test_when_insert_ltobj(self):
         tree = BSTree()
         tree.insert(LTObj(10))
-    
+
     def test_when_insert_ltobj2(self):
         tree = BSTree()
         val = LTObj(10)
@@ -105,7 +106,6 @@ class TestInputDataTypes:
         tree.insert(10**100)
         tree.insert(10)
 
-    # [TODO] investigate
     def test_largeint_largeint(self):
         tree = BSTree()
         tree.insert(10**100)
@@ -135,6 +135,18 @@ class TestInputDataTypes:
         tree = BSTree()
         tree.insert(datetime.now())
         tree.insert(datetime.now())
+
+    def test_int_float_int(self):
+        tree = BSTree()
+        tree.insert(10)
+        tree.insert(10.0)
+        tree.insert(10)
+
+    def test_float_int_float(self):
+        tree = BSTree()
+        tree.insert(10.0)
+        tree.insert(10)
+        tree.insert(10.0)
 
 
 class TestInputDataTypesError:
@@ -171,7 +183,7 @@ class TestInputDataTypesErrorUsingKey:
         with pytest.raises(AttributeError):
             tree = BSTree(key=key)
             tree.insert(0)
-    
+
 
 class TestInputDataTypesCustomObjs:
 
@@ -231,7 +243,7 @@ class TestInputDataTypesCustomObjError:
             tree = BSTree()
             tree.insert(NoCmpObj(10))
             tree.insert(LTObj(10**2))
-    
+
     def test_ltobj_nocmpobj_error(self):
         with pytest.raises(TypeError):
             tree = BSTree()
@@ -249,3 +261,29 @@ class TestInputDataTypesCustomObjError:
             tree = BSTree()
             tree.insert(GTObj(10))
             tree.insert(LTObj(10**2))
+
+
+class TestOutput:
+
+    def test_when_ok(self):
+        tree = BSTree()
+        assert tree.insert(0) == True
+
+    def test_when_ok_when_dup_is_true(self):
+        tree = BSTree(dup=True)
+        tree.insert(0)
+        assert tree.insert(0) == True
+
+    def test_when_ok_with_key(self):
+        tree = BSTree(key=abs)
+        assert tree.insert(0) == True
+
+    def test_when_ng(self):
+        tree = BSTree()
+        tree.insert(0)
+        assert tree.insert(0) == False
+
+    def test_when_ng_with_key(self):
+        tree = BSTree(key=abs)
+        tree.insert(1)
+        assert tree.insert(-1) == False

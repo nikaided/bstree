@@ -3,7 +3,7 @@ from sys import getrefcount
 import pytest
 
 from bstree import BSTree
-from tests.mock_object import NoCmpObj, LTObj, GTObj, LTGTObj, keyfunc
+from tests.mock_object import NoCmpObj, LTObj, GTObj, LTGTObj
 
 
 class TestInputDataType:
